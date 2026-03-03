@@ -356,7 +356,7 @@ export default function App() {
     e.preventDefault(); setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file) { const text = await readFile(file); run(text, file.name); }
-  }, [apiKey]);
+ }, [apiKey]);
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
