@@ -1,137 +1,500 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 
-const AC={a1:{bg:"#EEF2FF",border:"#6366F1",text:"#6366F1",dark:"#4F46E5"},a2:{bg:"#ECFDF5",border:"#10B981",text:"#10B981",dark:"#059669"},a3:{bg:"#FFF7ED",border:"#F59E0B",text:"#F59E0B",dark:"#D97706"},a4:{bg:"#FEF2F2",border:"#EF4444",text:"#EF4444",dark:"#DC2626"}};
-const ACTORS=[{id:"a1",name:"Lucas",emoji:"👨‍💼"},{id:"a2",name:"Himanshu",emoji:"👨‍💻"},{id:"a3",name:"Controlling",emoji:"🏢"},{id:"a4",name:"Alberto",emoji:"🔧"}];
-const NW=148,NH=68,DW=124,DH=72;
-const NODES=[
-  {id:"S",type:"start",x:20,y:94,label:"START"},
-  {id:1,type:"process",x:115,y:58,actorId:"a1",icon:"📅",label:"Monthly Trigger",desc:"Within first 5 working days, Lucas initiates charging via VDI.",steps:["Confirm within first 5 working days","Log into VDI via Keeper credentials","Open charging tool"],output:"VDI session ready",note:"⚠️ Must be done in first 5 working days!"},
-  {id:2,type:"process",x:310,y:58,actorId:"a1",icon:"⚙️",label:"Run Manual Process",desc:"Lucas runs the monthly charging job through VDI to generate the charge file.",steps:["Access charging system via VDI","Execute monthly charging run","Generate output file","Save file locally"],output:"Raw charge file generated",note:"Credentials in Keeper — share with Himanshu"},
-  {id:3,type:"decision",x:505,y:58,actorId:"a1",icon:"🔍",label:"Semicolon\nseparated?",desc:"Critical: file must use semicolons (;) not commas.",steps:["Open generated file","Check delimiter format","Verify semicolons not commas"],output:"Format validated",note:"⚠️ CRITICAL: Wrong format breaks Controlling import!",yes:"Proceed to handover",no:"Fix the file"},
-  {id:"F",type:"process",x:505,y:250,actorId:"a1",icon:"🛠️",label:"Fix Delimiter",desc:"Change delimiter from comma to semicolon and re-save.",steps:["Open file in editor","Replace commas with semicolons","Re-save file","Go back to validate"],output:"Fixed semicolon file",note:""},
-  {id:4,type:"process",x:690,y:58,actorId:"a3",icon:"📤",label:"Handover to Controlling",desc:"Validated file sent to Controlling who post charges to business units.",steps:["Send file to Controlling","Controlling imports file","Charges posted to BUs","Confirm charges done"],output:"Business units charged ✅",note:""},
-  {id:5,type:"decision",x:895,y:58,actorId:"a2",icon:"🔐",label:"GSOP reset\nprompted?",desc:"When VDI prompts password reset, Alberto must be notified to update Cockpit.",steps:["Watch for password popup (~every 6-12 months)","Reset GSOP password","Update password in Keeper","Notify Alberto"],output:"Password updated, Alberto notified",note:"Cockpit breaks if Alberto not informed!",yes:"Notify Alberto",no:"No action"},
-  {id:"G",type:"process",x:895,y:250,actorId:"a4",icon:"🔔",label:"Notify Alberto",desc:"Alberto updates Cockpit config after any GSOP password change.",steps:["Update new password in Keeper","Notify Alberto","Alberto updates Cockpit","Verify Cockpit working"],output:"Cockpit fixed ✅",note:""},
-  {id:6,type:"process",x:1080,y:58,actorId:"a1",icon:"📆",label:"Schedule Follow-up",desc:"Lucas schedules follow-up sessions for Power Automate and Pricing System.",steps:["Schedule Power Automate training","Schedule Pricing System walkthrough","Share VDI credentials via Keeper"],output:"Follow-up meetings booked",note:""},
-  {id:"E",type:"end",x:1285,y:94,label:"END"},
-];
-const ARROWS=[
-  {from:"S",to:1,color:"#10B981"},
-  {from:1,to:2,color:"#6366F1"},
-  {from:2,to:3,color:"#6366F1"},
-  {from:3,to:4,color:"#10B981",label:"YES ✓"},
-  {from:3,to:"F",color:"#EF4444",label:"NO ✗",type:"down"},
-  {from:"F",to:3,color:"#F59E0B",label:"retry",type:"up"},
-  {from:4,to:5,color:"#F59E0B"},
-  {from:5,to:6,color:"#94A3B8",label:"NO ✗"},
-  {from:5,to:"G",color:"#10B981",label:"YES ✓",type:"down"},
-  {from:"G",to:6,color:"#EF4444",type:"rightup"},
-  {from:6,to:"E",color:"#6366F1"},
-];
+const COLORS = ["#6366F1","#8B5CF6","#06B6D4","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6"];
 
-function nb(n){if(n.type==="start"||n.type==="end")return{x:n.x,y:n.y,w:68,h:36};if(n.type==="decision")return{x:n.x,y:n.y,w:DW,h:DH};return{x:n.x,y:n.y,w:NW,h:NH};}
-function pt(n,s){const b=nb(n),cx=b.x+b.w/2,cy=b.y+b.h/2;if(s==="r")return{x:b.x+b.w,y:cy};if(s==="l")return{x:b.x,y:cy};if(s==="b")return{x:cx,y:b.y+b.h};if(s==="t")return{x:cx,y:b.y};return{x:cx,y:cy};}
+const extractJSON = (text) => {
+  try {
+    const match = text.match(/```json\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\})/);
+    if (match) return JSON.parse(match[1]);
+    return JSON.parse(text);
+  } catch { return null; }
+};
 
-function Arr({arr,nodes}){
-  const fn=nodes.find(n=>n.id===arr.from),tn=nodes.find(n=>n.id===arr.to);
-  if(!fn||!tn)return null;
-  const c=arr.color||"#94A3B8",mid=`mk${c.replace('#','')}`;
-  let d="",lx=0,ly=0;
-  if(arr.type==="down"){const f=pt(fn,"b"),t=pt(tn,"t");d=`M${f.x} ${f.y}L${f.x} ${t.y}L${t.x} ${t.y}`;lx=f.x+14;ly=f.y+24;}
-  else if(arr.type==="up"){const f=pt(fn,"r"),t=pt(tn,"b"),ox=f.x+32;d=`M${f.x} ${f.y}L${ox} ${f.y}L${ox} ${t.y}L${t.x} ${t.y}`;lx=ox+10;ly=(f.y+t.y)/2;}
-  else if(arr.type==="rightup"){const f=pt(fn,"r"),t=pt(tn,"b"),ox=Math.max(f.x,t.x)+48;d=`M${f.x} ${f.y}L${ox} ${f.y}L${ox} ${t.y}L${t.x} ${t.y}`;lx=ox+10;ly=(f.y+t.y)/2;}
-  else{const f=pt(fn,"r"),t=pt(tn,"l");if(Math.abs(f.y-t.y)<4){d=`M${f.x} ${f.y}L${t.x} ${t.y}`;lx=(f.x+t.x)/2;ly=f.y-12;}else{const mx=(f.x+t.x)/2;d=`M${f.x} ${f.y}L${mx} ${f.y}L${mx} ${t.y}L${t.x} ${t.y}`;lx=mx+10;ly=(f.y+t.y)/2;}}
-  const dash=arr.label==="NO ✗"||arr.label==="retry"?"6,3":"none";
-  const lc=arr.label?.includes("YES")?"#10B981":arr.label==="retry"?"#F59E0B":arr.label==="NO ✗"?"#EF4444":null;
-  return(<g><path d={d} fill="none" stroke={c} strokeWidth={2.2} strokeDasharray={dash} markerEnd={`url(#${mid})`}/>{arr.label&&lc&&(<g><rect x={lx-18} y={ly-9} width={36} height={16} rx={5} fill={lc}/><text x={lx} y={ly+3} textAnchor="middle" fontSize={8} fill="white" fontWeight="800" fontFamily="sans-serif">{arr.label}</text></g>)}</g>);
+async function analyzeTranscript(text, apiKey) {
+  const prompt = `You are a business process analyst. Read this transcript or document and extract a clear AS/IS process flowchart.
+
+Return ONLY a JSON object in this exact format, no markdown, no explanation:
+{
+  "title": "Process title (short, clear)",
+  "summary": "One sentence describing the overall process",
+  "actors": [{"id": "a1", "name": "Person/System Name", "emoji": "👤"}],
+  "phases": [
+    {
+      "id": 1,
+      "title": "Phase title",
+      "actorId": "a1",
+      "icon": "📋",
+      "description": "What happens in this phase",
+      "steps": ["Step 1", "Step 2", "Step 3"],
+      "output": "What is produced",
+      "note": "Important note or warning if any",
+      "isDecision": false,
+      "decisionQuestion": "",
+      "decisionYes": "",
+      "decisionNo": ""
+    }
+  ],
+  "keyInsights": ["Insight 1", "Insight 2", "Insight 3"]
 }
 
-function Nd({node,active,onClick}){
-  const c=AC[node.actorId]||{bg:"#F1F5F9",border:"#94A3B8",text:"#64748B",dark:"#64748B"};
-  const b=nb(node),cx=b.x+b.w/2,cy=b.y+b.h/2;
-  if(node.type==="start")return(<g><ellipse cx={cx} cy={cy} rx={36} ry={20} fill="#d1fae5"/><ellipse cx={cx} cy={cy} rx={34} ry={18} fill="#10B981"/><text x={cx} y={cy+5} textAnchor="middle" fontSize={11} fontWeight="800" fill="white" fontFamily="sans-serif">START</text></g>);
-  if(node.type==="end")return(<g><ellipse cx={cx} cy={cy} rx={36} ry={20} fill="#fee2e2"/><ellipse cx={cx} cy={cy} rx={34} ry={18} fill="#EF4444"/><text x={cx} y={cy+5} textAnchor="middle" fontSize={11} fontWeight="800" fill="white" fontFamily="sans-serif">END</text></g>);
-  if(node.type==="decision"){const hw=DW/2,hh=DH/2,pts=`${cx},${cy-hh} ${cx+hw},${cy} ${cx},${cy+hh} ${cx-hw},${cy}`;
-    return(<g style={{cursor:"pointer"}} onClick={onClick}><polygon points={pts.split(" ").map(p=>{const[x,y]=p.split(",");return`${+x+3},${+y+3}`;}).join(" ")} fill="rgba(0,0,0,0.06)"/><polygon points={pts} fill={active?"#fef9c3":"white"} stroke={active?c.dark:c.border} strokeWidth={active?2.5:2}/><text x={cx} y={cy-6} textAnchor="middle" fontSize={15}>{node.icon}</text><text x={cx} y={cy+8} textAnchor="middle" fontSize={9} fontWeight="700" fill="#92400E" fontFamily="sans-serif">{node.label.split("\n")[0]}</text><text x={cx} y={cy+20} textAnchor="middle" fontSize={9} fontWeight="700" fill="#92400E" fontFamily="sans-serif">{node.label.split("\n")[1]||""}</text>{typeof node.id==="number"&&<g><circle cx={b.x+10} cy={b.y+10} r={11} fill={c.dark}/><text x={b.x+10} y={b.y+15} textAnchor="middle" fontSize={9} fontWeight="800" fill="white">{node.id}</text></g>}</g>);}
-  return(<g style={{cursor:"pointer"}} onClick={onClick}><rect x={b.x+3} y={b.y+3} width={NW} height={NH} rx={12} fill="rgba(0,0,0,0.06)"/><rect x={b.x} y={b.y} width={NW} height={NH} rx={12} fill={active?c.bg:"white"} stroke={active?c.dark:c.border} strokeWidth={active?2.5:1.8}/><rect x={b.x} y={b.y} width={NW} height={10} rx={12} fill={c.dark}/><rect x={b.x} y={b.y+6} width={NW} height={4} fill={c.dark}/><text x={b.x+18} y={b.y+NH/2+6} textAnchor="middle" fontSize={16}>{node.icon}</text><foreignObject x={b.x+32} y={b.y+14} width={NW-40} height={NH-18}><div xmlns="http://www.w3.org/1999/xhtml" style={{fontSize:"11px",fontWeight:"700",color:"#0F172A",lineHeight:"1.3",fontFamily:"sans-serif"}}>{node.label}</div></foreignObject>{typeof node.id==="number"&&<g><circle cx={b.x+10} cy={b.y-6} r={11} fill={c.dark}/><text x={b.x+10} y={b.y-2} textAnchor="middle" fontSize={9} fontWeight="800" fill="white">{node.id}</text></g>}{node.note&&<g><circle cx={b.x+NW-10} cy={b.y+16} r={8} fill="#F59E0B"/><text x={b.x+NW-10} y={b.y+20} textAnchor="middle" fontSize={9} fontWeight="800" fill="white">!</text></g>}<text x={b.x+NW-8} y={b.y+NH-6} textAnchor="end" fontSize={12}>{ACTORS.find(a=>a.id===node.actorId)?.emoji}</text></g>);
+Rules:
+- Extract 4-8 phases maximum
+- Keep steps concise (max 8 per phase)
+- Identify real decision points and mark isDecision: true
+- Pick relevant emojis for icons
+- keyInsights should highlight risks, bottlenecks, or important observations
+
+TRANSCRIPT/DOCUMENT:
+${text.substring(0, 8000)}`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err?.error?.message || `API Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.content?.map(c => c.text || "").join("") || "";
+  const parsed = extractJSON(rawText);
+  if (!parsed) throw new Error("Could not parse AI response. Please try again.");
+  return parsed;
 }
 
-function Detail({node,onClose}){
-  if(!node||node.type==="start"||node.type==="end")return null;
-  const c=AC[node.actorId]||{bg:"#F1F5F9",border:"#94A3B8",text:"#64748B"};
-  const actor=ACTORS.find(a=>a.id===node.actorId);
-  return(
-    <div style={{background:"#fff",border:`2px solid ${c.border}55`,borderRadius:"16px",padding:"20px",boxShadow:`0 4px 24px ${c.border}22`,marginTop:"16px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
-        <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
-          <div style={{width:"44px",height:"44px",borderRadius:"12px",background:c.bg,border:`1px solid ${c.border}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"}}>{node.icon}</div>
-          <div><div style={{fontSize:"15px",fontWeight:"800",color:"#0F172A"}}>{node.label.replace("\n"," ")}</div><div style={{fontSize:"12px",color:c.text,fontWeight:"600"}}>{actor?.emoji} {actor?.name}</div></div>
+const S = {
+  page: { minHeight: "100vh", background: "#F8FAFF", fontFamily: "'Segoe UI', system-ui, sans-serif", color: "#1E293B" },
+  nav: { background: "rgba(255,255,255,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid #E2E8F0", padding: "0 32px", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 },
+  logoIcon: { width: "36px", height: "36px", borderRadius: "10px", background: "linear-gradient(135deg, #6366F1, #8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" },
+  logoText: { fontSize: "20px", fontWeight: "800", background: "linear-gradient(135deg, #6366F1, #8B5CF6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
+  badge: { background: "#EEF2FF", border: "1px solid #C7D2FE", borderRadius: "20px", padding: "4px 12px", fontSize: "11px", color: "#6366F1", fontWeight: "700" },
+  card: { background: "#FFFFFF", borderRadius: "20px", border: "1px solid #E2E8F0", boxShadow: "0 4px 24px rgba(99,102,241,0.06)", padding: "28px" },
+  btn: { borderRadius: "12px", padding: "12px 28px", fontSize: "14px", fontWeight: "700", cursor: "pointer", border: "none", transition: "all 0.2s" },
+  btnPrimary: { background: "linear-gradient(135deg, #6366F1, #8B5CF6)", color: "#fff", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" },
+  btnSecondary: { background: "#F1F5F9", color: "#475569", border: "1px solid #E2E8F0" },
+  input: { width: "100%", background: "#F8FAFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "13px 16px", fontSize: "14px", color: "#1E293B", outline: "none", fontFamily: "inherit", transition: "border-color 0.2s", boxSizing: "border-box" },
+};
+
+function ApiKeyScreen({ onSave }) {
+  const [key, setKey] = useState("");
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [testing, setTesting] = useState(false);
+
+  const handleSave = async () => {
+    if (!key.startsWith("sk-ant-")) { setError("Invalid key — must start with sk-ant-"); return; }
+    setTesting(true); setError("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 10, messages: [{ role: "user", content: "hi" }] })
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e?.error?.message || "Invalid API key"); }
+      onSave(key);
+    } catch (e) { setError(e.message || "Could not verify key."); }
+    finally { setTesting(false); }
+  };
+
+  return (
+    <div style={{ ...S.page, display: "flex", flexDirection: "column" }}>
+      <style>{`
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes gradientShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(99,102,241,0.45) !important; }
+        input:focus { border-color:#6366F1 !important; box-shadow:0 0 0 3px rgba(99,102,241,0.1); }
+      `}</style>
+
+      <nav style={S.nav}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={S.logoIcon}>🧠</div>
+          <span style={S.logoText}>MindMap AI</span>
         </div>
-        <button onClick={onClose} style={{background:"#F1F5F9",border:"none",borderRadius:"8px",padding:"6px 14px",cursor:"pointer",fontSize:"13px",color:"#64748B",fontWeight:"600"}}>✕ Close</button>
-      </div>
-      <p style={{fontSize:"13px",color:"#64748B",lineHeight:1.6,fontStyle:"italic",borderLeft:`3px solid ${c.border}55`,paddingLeft:"12px",marginBottom:"16px"}}>{node.desc}</p>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
-        <div>
-          <div style={{fontSize:"11px",fontWeight:"700",color:c.text,letterSpacing:"1px",marginBottom:"10px"}}>PROCESS STEPS</div>
-          {node.steps?.map((s,i)=>(
-            <div key={i} style={{display:"flex",gap:"8px",marginBottom:"7px",alignItems:"flex-start"}}>
-              <span style={{minWidth:"20px",height:"20px",borderRadius:"5px",background:c.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",color:c.text,fontWeight:"700",flexShrink:0,marginTop:"1px"}}>{i+1}</span>
-              <span style={{fontSize:"13px",color:"#475569",lineHeight:1.5}}>{s}</span>
+        <div style={S.badge}>✦ AI Powered</div>
+      </nav>
+
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", background: "radial-gradient(ellipse at top, #EEF2FF 0%, #F8FAFF 60%)" }}>
+        <div style={{ width: "100%", maxWidth: "460px", animation: "fadeIn 0.6s ease" }}>
+
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            <div style={{ fontSize: "72px", animation: "float 3s ease-in-out infinite", display: "inline-block", marginBottom: "8px" }}>🧠</div>
+            <h1 style={{ fontSize: "30px", fontWeight: "900", color: "#0F172A", margin: "0 0 8px" }}>Welcome to MindMap AI</h1>
+            <p style={{ color: "#64748B", fontSize: "14px", lineHeight: 1.7, margin: 0 }}>
+              Your AI-powered process intelligence tool.<br/>Enter your API key to get started.
+            </p>
+          </div>
+
+          <div style={{ ...S.card, animation: "fadeIn 0.7s ease" }}>
+            <div style={{ fontSize: "11px", fontWeight: "700", color: "#6366F1", letterSpacing: "1.5px", marginBottom: "10px" }}>ANTHROPIC API KEY</div>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+              <input type={show ? "text" : "password"} value={key} onChange={e => { setKey(e.target.value); setError(""); }}
+                placeholder="sk-ant-api03-..." onKeyDown={e => e.key === "Enter" && handleSave()}
+                style={{ ...S.input, borderColor: error ? "#FCA5A5" : key.startsWith("sk-ant-") ? "#6EE7B7" : "#E2E8F0" }}
+              />
+              <button onClick={() => setShow(!show)} style={{ ...S.btn, ...S.btnSecondary, padding: "12px 14px", fontSize: "16px" }}>
+                {show ? "🙈" : "👁️"}
+              </button>
             </div>
-          ))}
-          {node.yes&&<div style={{marginTop:"10px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:"10px",padding:"10px 14px",fontSize:"12px"}}><div style={{fontWeight:"700",color:"#92400E",marginBottom:"6px"}}>◆ Decision Point</div><div style={{color:"#065F46",marginBottom:"3px"}}>✅ YES → {node.yes}</div><div style={{color:"#DC2626"}}>❌ NO → {node.no}</div></div>}
-        </div>
-        <div>
-          <div style={{fontSize:"11px",fontWeight:"700",color:c.text,letterSpacing:"1px",marginBottom:"10px"}}>OUTPUT</div>
-          <div style={{background:c.bg,border:`1px solid ${c.border}44`,borderRadius:"10px",padding:"12px 14px",fontSize:"13px",color:"#1E293B",marginBottom:"12px",lineHeight:1.5}}>✅ {node.output}</div>
-          {node.note&&<div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:"10px",padding:"10px 14px",fontSize:"12px",color:"#92400E",lineHeight:1.5}}>⚠️ {node.note}</div>}
+
+            {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "10px", padding: "10px 14px", fontSize: "13px", color: "#DC2626", marginBottom: "12px" }}>⚠️ {error}</div>}
+
+            <button className="btn-primary" onClick={handleSave} disabled={!key || testing}
+              style={{ ...S.btn, ...S.btnPrimary, width: "100%", opacity: key ? 1 : 0.5, cursor: key ? "pointer" : "not-allowed" }}>
+              {testing ? "⏳ Verifying..." : "✦ Launch MindMap AI →"}
+            </button>
+
+            <div style={{ marginTop: "20px", background: "#F8FAFF", borderRadius: "14px", padding: "16px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8", letterSpacing: "1px", marginBottom: "12px" }}>HOW TO GET YOUR KEY</div>
+              {[["1","Visit","console.anthropic.com"],["2","Sign up or log in",""],["3","API Keys → Create Key",""],["4","Copy & paste above",""]].map(([n,t,l]) => (
+                <div key={n} style={{ display: "flex", gap: "10px", marginBottom: "8px", alignItems: "center" }}>
+                  <span style={{ minWidth: "22px", height: "22px", borderRadius: "6px", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "#fff", fontWeight: "700", flexShrink: 0 }}>{n}</span>
+                  <span style={{ fontSize: "13px", color: "#64748B" }}>{t} {l && <a href={`https://${l}`} target="_blank" rel="noreferrer" style={{ color: "#6366F1", fontWeight: "600", textDecoration: "none" }}>{l}</a>}</span>
+                </div>
+              ))}
+              <div style={{ marginTop: "10px", background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "8px", padding: "8px 12px", fontSize: "12px", color: "#065F46", fontWeight: "500" }}>
+                💡 Cost: ~$0.001 per analysis. Very affordable!
+              </div>
+            </div>
+          </div>
+
+          <p style={{ textAlign: "center", fontSize: "11px", color: "#CBD5E1", marginTop: "16px" }}>
+            🔒 Your key stays in your browser session only — never stored
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-export default function App(){
-  const [active,setActive]=useState(null);
-  const allC=["#10B981","#EF4444","#6366F1","#F59E0B","#94A3B8","#4F46E5","#D97706","#059669","#DC2626","#8B5CF6"];
-  const maxX=Math.max(...NODES.map(n=>nb(n).x+nb(n).w))+80;
-  const maxY=Math.max(...NODES.map(n=>nb(n).y+nb(n).h))+60;
-  return(
-    <div style={{minHeight:"100vh",background:"#F8FAFF",fontFamily:"'Segoe UI',sans-serif"}}>
-      <div style={{background:"white",borderBottom:"1px solid #E2E8F0",padding:"0 24px",height:"52px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:10}}>
-        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          <div style={{width:"30px",height:"30px",borderRadius:"8px",background:"linear-gradient(135deg,#6366F1,#8B5CF6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px"}}>🧠</div>
-          <span style={{fontSize:"16px",fontWeight:"800",background:"linear-gradient(135deg,#6366F1,#8B5CF6)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>MindMap AI</span>
-        </div>
-        <div style={{background:"#EEF2FF",border:"1px solid #C7D2FE",borderRadius:"20px",padding:"3px 10px",fontSize:"11px",color:"#6366F1",fontWeight:"700"}}>✦ Visio-Style Preview</div>
-      </div>
-      <div style={{padding:"20px",maxWidth:"1500px",margin:"0 auto"}}>
-        <div style={{textAlign:"center",marginBottom:"16px"}}>
-          <h2 style={{fontSize:"20px",fontWeight:"900",color:"#0F172A",margin:"0 0 6px"}}>Monthly Business Unit Charging Process</h2>
-          <p style={{color:"#64748B",fontSize:"12px",margin:"0 0 12px"}}>Generated from Lucas & Himanshu transcript · Click any shape for details</p>
-          <div style={{display:"flex",gap:"8px",justifyContent:"center",flexWrap:"wrap"}}>
-            {Object.entries(AC).map(([id,c])=>{const a=ACTORS.find(x=>x.id===id);return a?(<div key={id} style={{display:"flex",alignItems:"center",gap:"5px",background:c.bg,border:`1px solid ${c.border}55`,borderRadius:"20px",padding:"3px 10px",fontSize:"11px",color:c.text,fontWeight:"600"}}>{a.emoji} {a.name}</div>):null;})}
-          </div>
-        </div>
-        <div style={{background:"#fff",borderRadius:"16px",border:"1px solid #E2E8F0",boxShadow:"0 2px 16px rgba(99,102,241,0.06)",overflowX:"auto",padding:"16px"}}>
-          <svg width={maxX} height={maxY} style={{display:"block",minWidth:maxX}}>
-            <defs>
-              <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#E2E8F0"/></pattern>
-              {allC.map(c=><marker key={c} id={`mk${c.replace('#','')}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill={c}/></marker>)}
-            </defs>
-            <rect width={maxX} height={maxY} fill="#F8FAFF"/>
-            <rect width={maxX} height={maxY} fill="url(#dots)"/>
-            {ARROWS.map((a,i)=><Arr key={i} arr={a} nodes={NODES}/>)}
-            {NODES.map(n=><Nd key={n.id} node={n} active={active?.id===n.id} onClick={()=>setActive(active?.id===n.id?null:n)}/>)}
-          </svg>
-        </div>
-        {active&&<Detail node={active} onClose={()=>setActive(null)}/>}
-        <div style={{background:"#fff",border:"1px solid #E2E8F0",borderRadius:"14px",padding:"16px 18px",marginTop:"12px"}}>
-          <div style={{fontSize:"11px",fontWeight:"700",color:"#6366F1",letterSpacing:"1px",marginBottom:"10px"}}>✦ KEY INSIGHTS</div>
-          {["⚠️ CRITICAL: File must be semicolon-separated — comma format breaks Controlling's import","🔐 GSOP password resets affect Cockpit — Alberto must ALWAYS be notified","📅 Hard deadline: Charging must complete within first 5 working days","🔑 VDI credentials in Keeper — to be shared with Himanshu","🏢 VDI access: Lucas, Himanshu, Alberto, Dominic (admin) only"].map((ins,i)=>(
-            <div key={i} style={{fontSize:"12px",color:"#475569",marginBottom:"7px",paddingLeft:"12px",borderLeft:"3px solid #6366F133",lineHeight:1.5}}>{ins}</div>
+function FlowchartView({ data }) {
+  const [active, setActive] = useState(null);
+  const getActorColor = (actorId) => { const idx = data.actors?.findIndex(a => a.id === actorId) ?? 0; return COLORS[idx % COLORS.length]; };
+  const getActor = (actorId) => data.actors?.find(a => a.id === actorId);
+
+  const handleSave = () => {
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title} — MindMap AI</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#F8FAFF;font-family:'Segoe UI',sans-serif;color:#1E293B;padding:40px 20px}.wrap{max-width:760px;margin:0 auto}.hdr{text-align:center;margin-bottom:40px}.logo{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px}.li{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:16px}.lt{font-size:18px;font-weight:800;background:linear-gradient(135deg,#6366F1,#8B5CF6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}h1{font-size:28px;font-weight:900;color:#0F172A;margin-bottom:8px}.sum{color:#64748B;font-size:14px}.actors{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0}.actor{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}.phase{background:#fff;border-radius:16px;border:1px solid #E2E8F0;padding:20px;margin-bottom:4px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}.ph{display:flex;align-items:center;gap:14px;margin-bottom:14px}.pi{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}.pt{font-size:15px;font-weight:700;color:#0F172A}.pa{font-size:11px;font-weight:600;margin-top:2px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.lbl{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:8px}.step{display:flex;gap:10px;margin-bottom:7px;font-size:13px;color:#475569;align-items:flex-start}.sn{min-width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}.out{border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:12px;line-height:1.5}.note{background:#F8FAFF;border:1px solid #E2E8F0;border-radius:10px;padding:10px 14px;font-size:12px;color:#64748B;line-height:1.5}.conn{display:flex;flex-direction:column;align-items:center;height:28px}.cl{width:2px;flex:1}.ca{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent}.ins{background:#fff;border:1px solid #E2E8F0;border-radius:16px;padding:20px;margin-top:24px}.ins-t{font-size:11px;font-weight:700;letter-spacing:1px;color:#6366F1;margin-bottom:12px}.ins-i{font-size:13px;color:#475569;margin-bottom:10px;padding-left:12px;border-left:3px solid #6366F133;line-height:1.5}.footer{text-align:center;margin-top:24px;font-size:12px;color:#94A3B8}</style>
+</head><body>
+<div class="hdr"><div class="logo"><div class="li">🧠</div><div class="lt">MindMap AI</div></div>
+<h1>${data.title}</h1><p class="sum">${data.summary}</p>
+<div class="actors">${(data.actors||[]).map((a,i)=>`<div class="actor" style="color:${COLORS[i%COLORS.length]};border-color:${COLORS[i%COLORS.length]}44;background:${COLORS[i%COLORS.length]}11">${a.emoji} ${a.name}</div>`).join("")}</div></div>
+<div class="wrap">
+${(data.phases||[]).map((p,idx)=>{const c=getActorColor(p.actorId);const a=getActor(p.actorId);return`
+<div class="phase" style="border-color:${c}33">
+<div class="ph"><div class="pi" style="background:${c}15;border:1px solid ${c}33">${p.icon}</div>
+<div><div class="pt">${p.title}</div><div class="pa" style="color:${c}">${a?.emoji||""} ${a?.name||""}</div></div>
+<div style="margin-left:auto;background:${c}11;border:1px solid ${c}33;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;color:${c}">STEP ${idx+1}</div></div>
+<p style="font-size:13px;color:#64748B;font-style:italic;border-left:3px solid ${c}44;padding-left:10px;margin-bottom:14px;line-height:1.5">${p.description}</p>
+<div class="grid">
+<div><div class="lbl" style="color:${c}">PROCESS STEPS</div>
+${p.steps.map((s,i)=>`<div class="step"><span class="sn" style="background:${c}15;color:${c}">${i+1}</span><span>${s}</span></div>`).join("")}
+${p.isDecision?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:8px"><b style="color:#92400E">◆ ${p.decisionQuestion}</b><br><span style="color:#065F46">✅ ${p.decisionYes}</span><br><span style="color:#DC2626">❌ ${p.decisionNo}</span></div>`:""}
+</div>
+<div><div class="lbl" style="color:${c}">OUTPUT</div>
+<div class="out" style="background:${c}11;border:1px solid ${c}33">✅ ${p.output}</div>
+${p.note?`<div class="note">💡 ${p.note}</div>`:""}
+</div></div></div>
+${idx<data.phases.length-1?`<div class="conn"><div class="cl" style="background:linear-gradient(180deg,${c}66,${getActorColor(data.phases[idx+1].actorId)}66)"></div><div class="ca" style="border-top:7px solid ${getActorColor(data.phases[idx+1].actorId)}99"></div></div>`:""}`}).join("")}
+<div class="ins"><div class="ins-t">✦ KEY INSIGHTS</div>${(data.keyInsights||[]).map(i=>`<div class="ins-i">${i}</div>`).join("")}</div>
+</div>
+<div class="footer">Generated by MindMap AI</div>
+</body></html>`;
+    const blob = new Blob([html],{type:"text/html"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=`${data.title.replace(/\s+/g,"_")}_mindmap.html`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 20px 60px" }}>
+      <div style={{ textAlign: "center", marginBottom: "32px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "20px", padding: "5px 14px", fontSize: "12px", color: "#065F46", fontWeight: "600", marginBottom: "16px" }}>✅ Analysis Complete</div>
+        <h2 style={{ fontSize: "clamp(22px,3vw,30px)", fontWeight: "900", color: "#0F172A", margin: "0 0 8px" }}>{data.title}</h2>
+        <p style={{ color: "#64748B", fontSize: "14px", margin: "0 0 18px", lineHeight: 1.6 }}>{data.summary}</p>
+        <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "20px" }}>
+          {(data.actors||[]).map((a,i) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "6px", background: `${COLORS[i%COLORS.length]}11`, border: `1px solid ${COLORS[i%COLORS.length]}33`, borderRadius: "20px", padding: "5px 14px", fontSize: "12px", color: COLORS[i%COLORS.length], fontWeight: "600" }}>
+              {a.emoji} {a.name}
+            </div>
           ))}
         </div>
+        <button className="btn-primary" onClick={handleSave} style={{ ...S.btn, ...S.btnPrimary }}>💾 Save as HTML File</button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {(data.phases||[]).map((phase, index) => {
+          const color = getActorColor(phase.actorId);
+          const actor = getActor(phase.actorId);
+          const isActive = active === phase.id;
+          return (
+            <div key={phase.id} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div onClick={() => setActive(isActive ? null : phase.id)} className="hover-card"
+                style={{ width: "100%", background: "#fff", border: `1px solid ${isActive ? color+"66" : "#E2E8F0"}`, borderRadius: isActive ? "16px 16px 0 0" : "16px", padding: "16px 20px", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "14px", boxShadow: isActive ? `0 4px 20px ${color}22` : "0 2px 8px rgba(0,0,0,0.04)" }}>
+                <div style={{ minWidth: "48px", height: "48px", borderRadius: "12px", background: `${color}15`, border: `1px solid ${color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>{phase.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#0F172A", marginBottom: "3px" }}>{phase.title}</div>
+                  <div style={{ fontSize: "12px", color, fontWeight: "600" }}>{actor?.emoji} {actor?.name}</div>
+                </div>
+                <div style={{ background: `${color}11`, border: `1px solid ${color}33`, borderRadius: "8px", padding: "3px 10px", fontSize: "11px", color, fontWeight: "700" }}>STEP {index+1}</div>
+                <div style={{ color, fontSize: "22px", transition: "transform 0.2s", transform: isActive ? "rotate(90deg)" : "rotate(0deg)" }}>›</div>
+              </div>
+
+              {isActive && (
+                <div style={{ width: "100%", background: "#FAFBFF", border: `1px solid ${color}44`, borderTop: "none", borderRadius: "0 0 16px 16px", padding: "18px 20px 22px" }}>
+                  <p style={{ fontSize: "13px", color: "#64748B", margin: "0 0 16px", lineHeight: 1.6, fontStyle: "italic", borderLeft: `3px solid ${color}44`, paddingLeft: "12px" }}>{phase.description}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color, letterSpacing: "1px", marginBottom: "10px" }}>PROCESS STEPS</div>
+                      {phase.steps.map((step,i) => (
+                        <div key={i} style={{ display: "flex", gap: "10px", marginBottom: "8px", alignItems: "flex-start" }}>
+                          <span style={{ minWidth: "22px", height: "22px", borderRadius: "6px", background: `${color}15`, border: `1px solid ${color}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color, fontWeight: "700", marginTop: "1px", flexShrink: 0 }}>{i+1}</span>
+                          <span style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5 }}>{step}</span>
+                        </div>
+                      ))}
+                      {phase.isDecision && (
+                        <div style={{ marginTop: "12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "10px", padding: "12px 14px", fontSize: "12px" }}>
+                          <div style={{ fontWeight: "700", color: "#92400E", marginBottom: "6px" }}>◆ {phase.decisionQuestion}</div>
+                          <div style={{ color: "#065F46", marginBottom: "4px" }}>✅ YES → {phase.decisionYes}</div>
+                          <div style={{ color: "#DC2626" }}>❌ NO → {phase.decisionNo}</div>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color, letterSpacing: "1px", marginBottom: "10px" }}>OUTPUT</div>
+                      <div style={{ background: `${color}11`, border: `1px solid ${color}33`, borderRadius: "10px", padding: "12px 14px", fontSize: "13px", color: "#1E293B", marginBottom: "14px", lineHeight: 1.5 }}>✅ {phase.output}</div>
+                      {phase.note && (<>
+                        <div style={{ fontSize: "11px", fontWeight: "700", color: "#94A3B8", letterSpacing: "1px", marginBottom: "8px" }}>NOTE</div>
+                        <div style={{ background: "#F8FAFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#64748B", lineHeight: 1.5 }}>💡 {phase.note}</div>
+                      </>)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {index < data.phases.length-1 && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "28px" }}>
+                  <div style={{ width: "2px", flex: 1, background: `linear-gradient(180deg,${color}66,${getActorColor(data.phases[index+1].actorId)}66)` }}/>
+                  <div style={{ width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: `7px solid ${getActorColor(data.phases[index+1].actorId)}99` }}/>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {data.keyInsights?.length > 0 && (
+        <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: "16px", padding: "20px", marginTop: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+          <div style={{ fontSize: "11px", fontWeight: "700", color: "#6366F1", letterSpacing: "1px", marginBottom: "14px" }}>✦ KEY INSIGHTS</div>
+          {data.keyInsights.map((insight,i) => (
+            <div key={i} style={{ fontSize: "13px", color: "#475569", marginBottom: "10px", paddingLeft: "14px", borderLeft: "3px solid #6366F133", lineHeight: 1.6 }}>{insight}</div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ textAlign: "center", marginTop: "28px" }}>
+        <button className="btn-primary" onClick={handleSave} style={{ ...S.btn, ...S.btnPrimary }}>💾 Save Flowchart as HTML File</button>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [apiKey, setApiKey] = useState("");
+  const [stage, setStage] = useState("upload");
+  const [dragOver, setDragOver] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [progress, setProgress] = useState("");
+  const [flowData, setFlowData] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [pasteText, setPasteText] = useState("");
+  const [showPaste, setShowPaste] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const run = useCallback(async (text, name) => {
+    setFileName(name); setStage("processing"); setProgress("Reading document...");
+    try {
+      setProgress("Analyzing with Claude AI...");
+      const result = await analyzeTranscript(text, apiKey);
+      setProgress("Building your flowchart...");
+      await new Promise(r => setTimeout(r, 400));
+      setFlowData(result); setStage("result");
+    } catch (err) { setErrorMsg(err.message || "Something went wrong."); setStage("error"); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey]);
+
+  const readFile = (file) => new Promise((res, rej) => {
+    if (file.type === "application/pdf") { res(`[PDF: ${file.name}] Please paste the text content for best results.`); return; }
+    const reader = new FileReader(); reader.onload = e => res(e.target.result); reader.onerror = rej; reader.readAsText(file);
+  });
+
+  const handleDrop = useCallback(async (e) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) { const text = await readFile(file); run(text, file.name); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run]);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) { const text = await readFile(file); run(text, file.name); }
+  };
+
+  const reset = () => { setStage("upload"); setFlowData(null); setFileName(""); setPasteText(""); setShowPaste(false); setErrorMsg(""); };
+
+  if (!apiKey) return <ApiKeyScreen onSave={setApiKey} />;
+
+  return (
+    <div style={S.page}>
+      <style>{`
+        @keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(99,102,241,0.45) !important;}
+        .hover-card:hover{box-shadow:0 8px 28px rgba(99,102,241,0.12) !important;transform:translateY(-1px);}
+        input:focus,textarea:focus{border-color:#6366F1 !important;box-shadow:0 0 0 3px rgba(99,102,241,0.1);outline:none;}
+        .drop-zone:hover{border-color:#6366F1 !important;background:#EEF2FF !important;}
+      `}</style>
+
+      <nav style={S.nav}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={S.logoIcon}>🧠</div>
+          <span style={S.logoText}>MindMap AI</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {stage === "result" && <button onClick={reset} style={{ ...S.btn, ...S.btnSecondary, padding: "8px 18px", fontSize: "13px" }}>← New Analysis</button>}
+          <button onClick={() => setApiKey("")} style={{ ...S.btn, background: "transparent", border: "none", color: "#94A3B8", fontSize: "12px", padding: "8px" }}>🔑 Change Key</button>
+          <div style={S.badge}>✦ AI Ready</div>
+        </div>
+      </nav>
+
+      {stage === "upload" && (
+        <div style={{ maxWidth: "660px", margin: "0 auto", padding: "48px 20px", animation: "fadeIn 0.5s ease" }}>
+          <div style={{ textAlign: "center", marginBottom: "40px" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#EEF2FF", border: "1px solid #C7D2FE", borderRadius: "20px", padding: "5px 14px", fontSize: "12px", color: "#6366F1", fontWeight: "600", marginBottom: "18px" }}>
+              ✦ AI-Powered Process Intelligence
+            </div>
+            <h1 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: "900", color: "#0F172A", margin: "0 0 14px", lineHeight: 1.1 }}>
+              Turn any transcript into a{" "}
+              <span style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>smart flowchart</span>
+            </h1>
+            <p style={{ color: "#64748B", fontSize: "15px", lineHeight: 1.7, margin: "0 auto", maxWidth: "460px" }}>
+              Upload a meeting transcript, SOP, or any document — MindMap AI extracts the process and builds an interactive flowchart instantly.
+            </p>
+          </div>
+
+          <div className="drop-zone" onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()}
+            style={{ ...S.card, border: `2px dashed ${dragOver ? "#6366F1" : "#C7D2FE"}`, background: dragOver ? "#EEF2FF" : "#fff", textAlign: "center", cursor: "pointer", padding: "52px 32px", marginBottom: "16px", transition: "all 0.2s" }}>
+            <div style={{ fontSize: "52px", marginBottom: "14px" }}>📂</div>
+            <div style={{ fontSize: "18px", fontWeight: "700", color: "#0F172A", marginBottom: "6px" }}>Drop your file here</div>
+            <div style={{ fontSize: "13px", color: "#94A3B8", marginBottom: "18px" }}>or click to browse your computer</div>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+              {[".TXT",".MD",".CSV",".DOCX",".PDF"].map(ext => (
+                <span key={ext} style={{ display: "inline-flex", alignItems: "center", background: "#EEF2FF", borderRadius: "8px", padding: "4px 12px", fontSize: "12px", color: "#6366F1", fontWeight: "600" }}>{ext}</span>
+              ))}
+            </div>
+          </div>
+          <input ref={fileInputRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.doc" onChange={handleFileChange} style={{ display: "none" }}/>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", margin: "20px 0" }}>
+            <div style={{ flex: 1, height: "1px", background: "#E2E8F0" }}/>
+            <span style={{ color: "#94A3B8", fontSize: "12px", fontWeight: "600" }}>OR PASTE TEXT DIRECTLY</span>
+            <div style={{ flex: 1, height: "1px", background: "#E2E8F0" }}/>
+          </div>
+
+          <div style={{ ...S.card, padding: 0, overflow: "hidden", marginBottom: "24px" }}>
+            <div onClick={() => setShowPaste(true)} style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", borderBottom: showPaste ? "1px solid #E2E8F0" : "none" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span style={{ fontSize: "22px" }}>📋</span>
+                <div>
+                  <div style={{ fontSize: "14px", fontWeight: "600", color: "#1E293B" }}>Paste transcript or text</div>
+                  <div style={{ fontSize: "12px", color: "#94A3B8" }}>Meeting notes, SOPs, chat exports...</div>
+                </div>
+              </div>
+              <div style={{ color: "#6366F1", fontSize: "22px", transform: showPaste ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>›</div>
+            </div>
+            {showPaste && (
+              <div style={{ padding: "16px 20px 20px" }}>
+                <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} autoFocus
+                  placeholder={"Paste your content here...\n\nExample:\nLucas: OK so first we log into the system...\nHimanshu: What format should the file be?\nLucas: It must be semicolon separated..."}
+                  style={{ ...S.input, minHeight: "180px", resize: "vertical", lineHeight: 1.6, padding: "14px" }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: "600", color: pasteText.length < 50 ? "#94A3B8" : "#10B981" }}>
+                    {pasteText.length < 50 ? `${pasteText.length} chars — need 50+` : `✅ ${pasteText.length} chars — ready!`}
+                  </span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => { setPasteText(""); setShowPaste(false); }} style={{ ...S.btn, ...S.btnSecondary, padding: "8px 16px", fontSize: "13px" }}>Clear</button>
+                    <button className="btn-primary" onClick={() => pasteText.trim().length >= 50 && run(pasteText, "Pasted text")} disabled={pasteText.trim().length < 50}
+                      style={{ ...S.btn, ...S.btnPrimary, padding: "8px 20px", fontSize: "13px", opacity: pasteText.trim().length >= 50 ? 1 : 0.5, cursor: pasteText.trim().length >= 50 ? "pointer" : "not-allowed" }}>
+                      ✦ Analyze Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+            {[["⚡","Instant analysis"],["🎯","Extracts key steps"],["🔀","Decision points"],["💾","Save to computer"]].map(([icon,label]) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", background: "#fff", border: "1px solid #E2E8F0", borderRadius: "20px", padding: "6px 14px", fontSize: "12px", color: "#64748B", fontWeight: "500", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <span>{icon}</span><span>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {stage === "processing" && (
+        <div style={{ maxWidth: "460px", margin: "80px auto", textAlign: "center", padding: "0 20px", animation: "fadeIn 0.4s ease" }}>
+          <div style={{ width: "80px", height: "80px", borderRadius: "24px", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", margin: "0 auto 24px", animation: "spin 3s linear infinite", boxShadow: "0 8px 32px rgba(99,102,241,0.35)" }}>🧠</div>
+          <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#0F172A", margin: "0 0 8px" }}>Analyzing your document</h2>
+          <p style={{ color: "#6366F1", fontSize: "14px", fontWeight: "600", margin: "0 0 8px", animation: "pulse 1.5s ease-in-out infinite" }}>{progress}</p>
+          <p style={{ fontSize: "13px", color: "#94A3B8", marginBottom: "32px" }}>📄 {fileName}</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {["Reading & parsing document","Identifying actors & roles","Extracting process steps","Detecting decision points","Building your flowchart"].map((step,i) => (
+              <div key={step} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: "#fff", borderRadius: "12px", border: "1px solid #E2E8F0", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#6366F1", boxShadow: "0 0 8px #6366F166", animation: `pulse ${1+i*0.2}s ease-in-out infinite`, flexShrink: 0 }}/>
+                <span style={{ fontSize: "13px", color: "#64748B", fontWeight: "500" }}>{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {stage === "result" && flowData && (
+        <div style={{ animation: "fadeIn 0.5s ease", paddingTop: "32px" }}>
+          <FlowchartView data={flowData} />
+        </div>
+      )}
+
+      {stage === "error" && (
+        <div style={{ maxWidth: "440px", margin: "80px auto", textAlign: "center", padding: "0 20px", animation: "fadeIn 0.4s ease" }}>
+          <div style={{ fontSize: "52px", marginBottom: "16px" }}>😕</div>
+          <h2 style={{ fontSize: "22px", fontWeight: "800", color: "#0F172A", marginBottom: "8px" }}>Something went wrong</h2>
+          <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "14px 16px", fontSize: "13px", color: "#DC2626", marginBottom: "24px", lineHeight: 1.5 }}>{errorMsg}</div>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button className="btn-primary" onClick={reset} style={{ ...S.btn, ...S.btnPrimary }}>Try Again</button>
+            <button onClick={() => setApiKey("")} style={{ ...S.btn, ...S.btnSecondary }}>Change API Key</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ textAlign: "center", padding: "20px", fontSize: "12px", color: "#CBD5E1", borderTop: "1px solid #F1F5F9", marginTop: "20px" }}>
+        MindMap AI · Powered by Claude · Built for smart teams ✦
       </div>
     </div>
   );
