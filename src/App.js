@@ -123,7 +123,7 @@ function ApiKeyScreen({ onSave }) {
           <div style={S.logoIcon}>🧠</div>
           <span style={S.logoText}>MindMap AI</span>
         </div>
-        <div style={S.badge}>✦ </div>
+        <div style={S.badge}>✦ AI Powered</div>
       </nav>
 
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", background: "radial-gradient(ellipse at top, #EEF2FF 0%, #F8FAFF 60%)" }}>
@@ -327,7 +327,7 @@ export default function App() {
   const run = useCallback(async (text, name) => {
     setFileName(name); setStage("processing"); setProgress("Reading document...");
     try {
-      setProgress("Analyzing your document....");
+      setProgress("Analyzing with Claude AI...");
       const result = await analyzeTranscript(text, apiKey);
       setProgress("Building your flowchart...");
       await new Promise(r => setTimeout(r, 400));
@@ -494,7 +494,7 @@ export default function App() {
       )}
 
       <div style={{ textAlign: "center", padding: "20px", fontSize: "12px", color: "#CBD5E1", borderTop: "1px solid #F1F5F9", marginTop: "20px" }}>
-        MindMap AI · AI Powered · Built for smart teams ✦
+        MindMap AI · Powered by Claude · Built for smart teams ✦
       </div>
     </div>
   );
