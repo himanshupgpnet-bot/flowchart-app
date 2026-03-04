@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
-const COLORS = ["#2D2D2D","#6B7280","#059669","#2563EB","#D97706","#DC2626","#7C3AED","#0891B2"];
+const COLORS = ["#00E5FF","#7C3AED","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6","#8B5CF6"];
 
 const extractJSON = (text) => {
   try {
@@ -27,54 +27,58 @@ async function analyzeTranscript(text, apiKey) {
   return parsed;
 }
 
+// ── EXPORTS (unchanged logic) ──────────────────────────────────────────────────
 function doExportHTML(data) {
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#FAFAF9;font-family:'Georgia',serif;padding:40px 20px}
-.w{max-width:720px;margin:0 auto}h1{font-size:28px;font-weight:400;color:#1C1C1C;text-align:center;margin-bottom:8px;letter-spacing:-0.5px}
-.sum{text-align:center;color:#6B7280;margin-bottom:28px;font-size:14px}.acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
-.act{padding:4px 14px;border-radius:4px;font-size:12px;font-weight:500;border:1px solid #E5E7EB;color:#374151}
-.phase{background:#fff;border-radius:8px;padding:20px;margin-bottom:4px;border:1px solid #E5E7EB}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.lbl{font-size:10px;font-weight:600;letter-spacing:2px;margin-bottom:10px;color:#9CA3AF;text-transform:uppercase}
-.step{display:flex;gap:10px;margin-bottom:8px;font-size:13px;color:#374151}
-.out{border-radius:6px;padding:12px;font-size:13px;margin-bottom:8px;background:#F9FAFB;border:1px solid #E5E7EB}
-.arr{text-align:center;font-size:18px;color:#D1D5DB;margin:6px 0}
-.footer{text-align:center;margin-top:32px;font-size:11px;color:#9CA3AF;letter-spacing:1px}</style></head><body>
+  const gc=(idx)=>COLORS[idx%COLORS.length];
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0A0E1A;font-family:'Segoe UI',sans-serif;padding:40px 20px;color:#E2E8F0}
+.w{max-width:780px;margin:0 auto}h1{font-size:26px;font-weight:700;color:#00E5FF;text-align:center;margin-bottom:8px}
+.sum{text-align:center;color:#94A3B8;margin-bottom:20px}.acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
+.act{padding:4px 14px;border-radius:4px;font-size:12px;font-weight:600;border:1px solid #00E5FF44;color:#00E5FF;background:#00E5FF11}
+.phase{background:#0F1629;border-radius:8px;padding:18px;margin-bottom:4px;border:1px solid #1E293B}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.lbl{font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:8px;color:#00E5FF;text-transform:uppercase}
+.step{display:flex;gap:8px;margin-bottom:6px;font-size:13px;color:#CBD5E1}
+.out{border-radius:6px;padding:10px;font-size:13px;margin-bottom:8px;background:#00E5FF0A;border:1px solid #00E5FF33}
+.arr{text-align:center;font-size:20px;color:#00E5FF44;margin:4px 0}
+.footer{text-align:center;margin-top:20px;font-size:11px;color:#475569;letter-spacing:2px}</style></head><body>
 <div class="w"><h1>${data.title}</h1><p class="sum">${data.summary}</p>
 <div class="acts">${(data.actors||[]).map(a=>`<div class="act">${a.emoji} ${a.name}</div>`).join("")}</div>
 ${(data.phases||[]).map((p,idx)=>{const actor=data.actors?.find(a=>a.id===p.actorId);return`
-<div class="phase"><div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+<div class="phase"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
 <span style="font-size:20px">${p.icon}</span>
-<div><div style="font-size:15px;font-weight:600;color:#1C1C1C">${p.title}</div><div style="font-size:11px;color:#9CA3AF">${actor?.emoji} ${actor?.name} · Step ${idx+1}</div></div></div>
+<div><div style="font-size:14px;font-weight:600;color:#E2E8F0">${p.title}</div>
+<div style="font-size:11px;color:#00E5FF">${actor?.emoji} ${actor?.name} · Step ${idx+1}</div></div></div>
 <div class="grid"><div><div class="lbl">Steps</div>
-${p.steps.map((s,i)=>`<div class="step"><span style="min-width:18px;color:#9CA3AF;font-size:11px">${i+1}.</span><span>${s}</span></div>`).join("")}
-${p.isDecision?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:10px;font-size:12px;margin-top:10px"><b>◆ ${p.decisionQuestion}</b><br/>✓ ${p.decisionYes}<br/>✗ ${p.decisionNo}</div>`:""}
+${p.steps.map((s,i)=>`<div class="step"><span style="color:#00E5FF;min-width:20px;font-size:11px">${i+1}.</span><span>${s}</span></div>`).join("")}
+${p.isDecision?`<div style="background:#F59E0B11;border:1px solid #F59E0B44;border-radius:6px;padding:10px;font-size:12px;margin-top:10px;color:#FCD34D"><b>◆ ${p.decisionQuestion}</b><br/>✓ ${p.decisionYes}<br/>✗ ${p.decisionNo}</div>`:""}
 </div><div><div class="lbl">Output</div>
-<div class="out">↳ ${p.output}</div>
-${p.note?`<div style="font-size:12px;color:#92400E;padding:8px;background:#FFFBEB;border-radius:6px">⚠ ${p.note}</div>`:""}</div></div></div>
+<div class="out">→ ${p.output}</div>
+${p.note?`<div style="font-size:12px;color:#FCD34D;padding:8px;background:#F59E0B11;border-radius:6px;border:1px solid #F59E0B33">⚠ ${p.note}</div>`:""}</div></div></div>
 ${idx<data.phases.length-1?`<div class="arr">↓</div>`:""}`}).join("")}
-<div style="background:#fff;border-radius:8px;padding:20px;margin-top:16px;border:1px solid #E5E7EB">
+<div style="background:#0F1629;border-radius:8px;padding:20px;margin-top:16px;border:1px solid #1E293B">
 <div class="lbl">Key Insights</div>
-${(data.keyInsights||[]).map(i=>`<div style="font-size:13px;color:#374151;margin-bottom:8px;padding-left:12px;border-left:2px solid #E5E7EB;line-height:1.6">${i}</div>`).join("")}</div>
-<div class="footer">MINDMAP AI</div></div></body></html>`;
+${(data.keyInsights||[]).map(i=>`<div style="font-size:13px;color:#CBD5E1;margin-bottom:8px;padding-left:12px;border-left:2px solid #00E5FF44;line-height:1.6">${i}</div>`).join("")}</div>
+<div class="footer">FLOWSCRIBE AI</div></div></body></html>`;
   const b=new Blob([html],{type:"text/html"});const u=URL.createObjectURL(b);
   const a=document.createElement("a");a.href=u;a.download=`${data.title.replace(/\s+/g,"_")}.html`;a.click();URL.revokeObjectURL(u);
 }
 
 function doExportWord(data) {
   const phases=data.phases||[];const actors=data.actors||[];
-  const body=`<h1>${data.title}</h1><p style="color:#6B7280;font-style:italic">${data.summary}</p><br/>
+  const body=`<h1 style="color:#1E40AF">${data.title}</h1><p style="color:#64748B;font-style:italic">${data.summary}</p><br/>
 <h2>Participants</h2>
 <table border="1" cellpadding="8" style="border-collapse:collapse;width:100%;margin-bottom:20px">
-<tr style="background:#F9FAFB"><th>Actor</th><th>Name</th></tr>
+<tr style="background:#EFF6FF"><th>Actor</th><th>Name</th></tr>
 ${actors.map(a=>`<tr><td>${a.emoji}</td><td>${a.name}</td></tr>`).join("")}
 </table>
 ${phases.map((p,i)=>{const actor=actors.find(a=>a.id===p.actorId);return`
-<h3>Step ${i+1}: ${p.title}</h3><p><b>Owner:</b> ${actor?.emoji} ${actor?.name}</p>
-<p><i>${p.description}</i></p><ol>${p.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
+<h3 style="color:#1E40AF">Step ${i+1}: ${p.title}</h3>
+<p><b>Owner:</b> ${actor?.emoji} ${actor?.name}</p><p><i>${p.description}</i></p>
+<ol>${p.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
 <p><b>Output:</b> ${p.output}</p>${p.note?`<p><b>Note:</b> ${p.note}</p>`:""}<hr/>`}).join("")}
 <h2>Key Insights</h2><ul>${(data.keyInsights||[]).map(i=>`<li>${i}</li>`).join("")}</ul>`;
-  const full=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${data.title}</title><style>body{font-family:Georgia,serif;font-size:11pt;margin:2.5cm}h1{font-size:20pt;font-weight:normal}h2{font-size:14pt}h3{font-size:12pt}</style></head><body>${body}</body></html>`;
+  const full=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${data.title}</title><style>body{font-family:Calibri,sans-serif;font-size:11pt;margin:2cm}</style></head><body>${body}</body></html>`;
   const b=new Blob(['\ufeff',full],{type:"application/msword"});const u=URL.createObjectURL(b);
   const a=document.createElement("a");a.href=u;a.download=`${data.title.replace(/\s+/g,"_")}.doc`;a.click();URL.revokeObjectURL(u);
 }
@@ -82,64 +86,60 @@ ${phases.map((p,i)=>{const actor=actors.find(a=>a.id===p.actorId);return`
 function doExportPDF(data) {
   const phases=data.phases||[];const actors=data.actors||[];
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
-<style>@page{margin:2cm;size:A4}*{box-sizing:border-box}body{font-family:'Georgia',serif;font-size:10.5pt;color:#1C1C1C;line-height:1.6}
-h1{font-size:22pt;font-weight:400;letter-spacing:-0.5px;margin-bottom:6px}.sum{color:#6B7280;font-style:italic;margin-bottom:20px}
-.phase{border:1px solid #E5E7EB;border-radius:8px;padding:14px;margin-bottom:8px;page-break-inside:avoid}
-.footer{text-align:center;font-size:8.5pt;color:#9CA3AF;margin-top:20px;padding-top:12px;border-top:1px solid #E5E7EB;letter-spacing:1.5px}
-.print-btn{position:fixed;top:16px;right:16px;background:#1C1C1C;color:white;border:none;border-radius:6px;padding:10px 20px;font-size:13px;cursor:pointer}
+<style>@page{margin:2cm;size:A4}body{font-family:'Segoe UI',sans-serif;font-size:10.5pt;color:#1E293B;line-height:1.6}
+h1{font-size:20pt;color:#1E40AF;margin-bottom:6px}.phase{border:1px solid #E2E8F0;border-radius:8px;padding:14px;margin-bottom:8px;page-break-inside:avoid}
+.footer{text-align:center;font-size:8pt;color:#94A3B8;margin-top:20px;letter-spacing:2px}
+.print-btn{position:fixed;top:16px;right:16px;background:#1E40AF;color:white;border:none;border-radius:6px;padding:10px 20px;cursor:pointer}
 @media print{.print-btn{display:none}}</style></head><body>
-<button class="print-btn" onclick="window.print()">Save as PDF</button>
-<h1>${data.title}</h1><p class="sum">${data.summary}</p>
-<p style="margin-bottom:20px">${actors.map(a=>`${a.emoji} ${a.name}`).join(" · ")}</p>
+<button class="print-btn" onclick="window.print()">Save PDF</button>
+<h1>${data.title}</h1><p style="color:#64748B;font-style:italic;margin-bottom:16px">${data.summary}</p>
 ${phases.map((p,idx)=>{const actor=actors.find(a=>a.id===p.actorId);return`
-<div class="phase"><div style="display:flex;justify-content:space-between;margin-bottom:10px">
-<span style="font-size:13pt;font-weight:600">${p.icon} ${p.title}</span>
-<span style="font-size:9pt;color:#9CA3AF">${actor?.name} · Step ${idx+1}</span></div>
-<p style="font-size:9.5pt;color:#6B7280;font-style:italic;margin-bottom:10px">${p.description}</p>
-${p.steps.map((s,i)=>`<div style="font-size:9.5pt;margin-bottom:5px;padding-left:16px">${i+1}. ${s}</div>`).join("")}
-<div style="margin-top:10px;padding:8px;background:#F9FAFB;border-radius:6px;font-size:9.5pt">↳ ${p.output}</div>
-${p.note?`<div style="margin-top:6px;font-size:9pt;color:#92400E">⚠ ${p.note}</div>`:""}</div>
-${idx<phases.length-1?`<div style="text-align:center;color:#D1D5DB;margin:4px 0;font-size:14pt">↓</div>`:""}`}).join("")}
-<div style="margin-top:16px;border:1px solid #E5E7EB;border-radius:8px;padding:14px">
-<div style="font-size:9pt;font-weight:600;letter-spacing:2px;color:#9CA3AF;text-transform:uppercase;margin-bottom:10px">Key Insights</div>
-${(data.keyInsights||[]).map(i=>`<div style="font-size:9.5pt;color:#374151;margin-bottom:7px;padding-left:12px;border-left:2px solid #E5E7EB">${i}</div>`).join("")}</div>
-<div class="footer">MINDMAP AI</div></body></html>`;
+<div class="phase"><b>${p.icon} Step ${idx+1}: ${p.title}</b> <span style="color:#64748B;font-size:9pt">— ${actor?.name}</span><br/>
+<i style="color:#64748B;font-size:9pt">${p.description}</i><br/>
+${p.steps.map((s,i)=>`${i+1}. ${s}`).join(" · ")}<br/>
+<span style="color:#1E40AF">→ ${p.output}</span>
+${p.note?`<br/><span style="color:#92400E">⚠ ${p.note}</span>`:""}</div>
+${idx<phases.length-1?`<div style="text-align:center;color:#CBD5E1;margin:4px 0">↓</div>`:""}`}).join("")}
+<div style="margin-top:16px;border:1px solid #E2E8F0;border-radius:8px;padding:14px">
+<b style="font-size:9pt;color:#64748B;letter-spacing:2px;text-transform:uppercase">Key Insights</b><br/>
+${(data.keyInsights||[]).map(i=>`<div style="font-size:9.5pt;color:#374151;margin-top:6px;padding-left:12px;border-left:2px solid #CBD5E1">${i}</div>`).join("")}</div>
+<div class="footer">FLOWSCRIBE AI</div></body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
 function doExportPPT(data) {
   const phases=data.phases||[];const actors=data.actors||[];
   const slides=[
-    `<div class="slide" style="background:#1C1C1C;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px">
-      <div style="font-size:11pt;letter-spacing:3px;color:#6B7280;text-transform:uppercase;margin-bottom:20px">Process Flowchart</div>
-      <h1 style="font-size:32pt;font-weight:400;color:#FAFAF9;letter-spacing:-1px;margin-bottom:16px;max-width:700px;line-height:1.15">${data.title}</h1>
-      <p style="font-size:13pt;color:#9CA3AF;max-width:560px;line-height:1.6">${data.summary}</p>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:32px">
-        ${actors.map(a=>`<div style="padding:6px 16px;border:1px solid #374151;border-radius:4px;font-size:11pt;color:#9CA3AF">${a.emoji} ${a.name}</div>`).join("")}
+    `<div class="slide" style="background:linear-gradient(135deg,#0A0E1A 0%,#0F1629 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px">
+      <div style="font-size:10pt;letter-spacing:4px;color:#00E5FF;text-transform:uppercase;margin-bottom:16px;font-family:monospace">AI · Flowchart · Intelligence</div>
+      <h1 style="font-size:30pt;font-weight:700;color:#F8FAFC;letter-spacing:-1px;margin-bottom:14px;max-width:700px;line-height:1.15">${data.title}</h1>
+      <p style="font-size:13pt;color:#94A3B8;max-width:560px;line-height:1.6">${data.summary}</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:28px">
+        ${actors.map(a=>`<div style="padding:6px 16px;border:1px solid #00E5FF44;border-radius:4px;font-size:11pt;color:#00E5FF;background:#00E5FF0A">${a.emoji} ${a.name}</div>`).join("")}
       </div></div>`,
     ...phases.map((p,idx)=>{const actor=actors.find(a=>a.id===p.actorId);return`
-    <div class="slide" style="padding:50px 56px;display:flex;flex-direction:column">
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid #E5E7EB">
-        <span style="font-size:28px">${p.icon}</span>
-        <div><div style="font-size:18pt;font-weight:600;color:#1C1C1C;letter-spacing:-0.3px">${p.title}</div>
-        <div style="font-size:11pt;color:#9CA3AF;margin-top:3px">${actor?.emoji} ${actor?.name} · Step ${idx+1}</div></div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1">
-        <div><div style="font-size:9pt;letter-spacing:2px;color:#9CA3AF;text-transform:uppercase;margin-bottom:14px">Steps</div>
-        ${p.steps.map((s,i)=>`<div style="display:flex;gap:12px;margin-bottom:10px"><span style="color:#9CA3AF;font-size:11pt;min-width:20px">${i+1}.</span><span style="font-size:11pt;color:#374151;line-height:1.5">${s}</span></div>`).join("")}</div>
-        <div><div style="font-size:9pt;letter-spacing:2px;color:#9CA3AF;text-transform:uppercase;margin-bottom:14px">Output</div>
-        <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:16px;font-size:11pt;color:#1C1C1C;line-height:1.5">↳ ${p.output}</div>
-        ${p.note?`<div style="margin-top:12px;font-size:10pt;color:#92400E;padding:10px;background:#FFFBEB;border-radius:6px">⚠ ${p.note}</div>`:""}</div>
+    <div class="slide" style="background:#0A0E1A;padding:44px 52px;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1E293B">
+        <span style="font-size:26px">${p.icon}</span>
+        <div><div style="font-size:16pt;font-weight:700;color:#F8FAFC">${p.title}</div>
+        <div style="font-size:10pt;color:#00E5FF;margin-top:2px;font-family:monospace">${actor?.emoji} ${actor?.name} · STEP ${String(idx+1).padStart(2,"0")}</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1">
+        <div><div style="font-size:8pt;letter-spacing:2px;color:#00E5FF;text-transform:uppercase;margin-bottom:12px;font-family:monospace">Process Steps</div>
+        ${p.steps.map((s,i)=>`<div style="display:flex;gap:10px;margin-bottom:9px"><span style="color:#00E5FF;font-size:10pt;min-width:20px;font-family:monospace">${i+1}.</span><span style="font-size:10pt;color:#CBD5E1;line-height:1.5">${s}</span></div>`).join("")}</div>
+        <div><div style="font-size:8pt;letter-spacing:2px;color:#00E5FF;text-transform:uppercase;margin-bottom:12px;font-family:monospace">Output</div>
+        <div style="background:#00E5FF0A;border:1px solid #00E5FF33;border-radius:6px;padding:14px;font-size:10pt;color:#E2E8F0;line-height:1.5">→ ${p.output}</div>
+        ${p.note?`<div style="margin-top:10px;font-size:9pt;color:#FCD34D;padding:10px;background:#F59E0B0A;border:1px solid #F59E0B33;border-radius:6px">⚠ ${p.note}</div>`:""}</div>
       </div></div>`}).join(""),
-    `<div class="slide" style="padding:50px 56px">
-    <div style="font-size:9pt;letter-spacing:3px;color:#9CA3AF;text-transform:uppercase;margin-bottom:28px">Key Insights</div>
-    ${(data.keyInsights||[]).map((ins,i)=>`<div style="display:flex;gap:16px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #F3F4F6">
-    <span style="font-size:11pt;color:#D1D5DB;min-width:24px">${i+1<10?"0"+(i+1):i+1}</span>
-    <span style="font-size:12pt;color:#1C1C1C;line-height:1.6">${ins}</span></div>`).join("")}</div>`
+    `<div class="slide" style="background:#0A0E1A;padding:44px 52px">
+    <div style="font-size:8pt;letter-spacing:3px;color:#00E5FF;text-transform:uppercase;margin-bottom:24px;font-family:monospace">Key Insights</div>
+    ${(data.keyInsights||[]).map((ins,i)=>`<div style="display:flex;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #1E293B">
+    <span style="font-size:10pt;color:#00E5FF44;min-width:24px;font-family:monospace">${i+1<10?"0"+(i+1):i+1}</span>
+    <span style="font-size:11pt;color:#CBD5E1;line-height:1.6">${ins}</span></div>`).join("")}</div>`
   ];
   const full=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#F3F4F6;font-family:'Georgia',serif;padding:24px}
-.slide{width:960px;min-height:540px;background:#FAFAF9;border-radius:4px;margin:0 auto 20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1)}
-@media print{body{background:white;padding:0}.slide{box-shadow:none;width:100%;margin:0;page-break-after:always}}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#000;font-family:'Segoe UI',sans-serif;padding:20px}
+.slide{width:960px;min-height:540px;border-radius:8px;margin:0 auto 20px;overflow:hidden;box-shadow:0 0 40px rgba(0,229,255,0.1)}
+@media print{body{background:black;padding:0}.slide{margin:0;page-break-after:always;border-radius:0}}</style>
 </head><body>${slides.join("")}</body></html>`;
   const b=new Blob([full],{type:"text/html"});const u=URL.createObjectURL(b);
   const a=document.createElement("a");a.href=u;a.download=`${data.title.replace(/\s+/g,"_")}_slides.html`;a.click();URL.revokeObjectURL(u);
@@ -147,48 +147,316 @@ function doExportPPT(data) {
 
 // ── GLOBAL STYLES ─────────────────────────────────────────────────────────────
 const GCSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Geist:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   :root {
-    --ink: #1C1C1C; --ink2: #374151; --muted: #6B7280; --faint: #9CA3AF;
-    --line: #E5E7EB; --surface: #FAFAF9; --white: #FFFFFF; --warm: #F9FAFB;
+    --bg:      #080C18;
+    --bg2:     #0D1225;
+    --bg3:     #111827;
+    --panel:   #0F1629;
+    --border:  #1E2D45;
+    --border2: #243352;
+    --cyan:    #00E5FF;
+    --cyan2:   #00B8D9;
+    --glow:    rgba(0,229,255,0.15);
+    --text:    #E2E8F0;
+    --text2:   #94A3B8;
+    --text3:   #475569;
+    --green:   #10B981;
+    --amber:   #F59E0B;
+    --red:     #EF4444;
   }
-  body { background: var(--surface); font-family: 'Geist', system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
 
-  .nav { height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; border-bottom:1px solid var(--line); background:rgba(250,250,249,0.92); backdrop-filter:blur(16px); position:sticky; top:0; z-index:100; }
-  .nav-logo { font-family:'Fraunces',serif; font-size:18px; font-weight:400; color:var(--ink); letter-spacing:-0.3px; display:flex; align-items:center; gap:10px; }
-  .nav-dot { width:7px; height:7px; border-radius:50%; background:var(--ink); }
+  body {
+    background: var(--bg);
+    font-family: 'Outfit', sans-serif;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
 
-  .btn { font-family:'Geist',sans-serif; font-size:13px; font-weight:500; border-radius:6px; padding:9px 20px; cursor:pointer; border:1px solid transparent; transition:all 0.15s; }
-  .btn-primary { background:var(--ink); color:#fff; border-color:var(--ink); }
-  .btn-primary:hover { background:#333; }
-  .btn-primary:disabled { background:#9CA3AF; border-color:#9CA3AF; cursor:not-allowed; }
-  .btn-ghost { background:transparent; color:var(--muted); border-color:var(--line); }
-  .btn-ghost:hover { background:var(--warm); color:var(--ink); border-color:#D1D5DB; }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
-  .input { font-family:'Geist',sans-serif; font-size:14px; color:var(--ink); background:var(--white); border:1px solid var(--line); border-radius:6px; padding:10px 14px; width:100%; outline:none; transition:border-color 0.15s; }
-  .input:focus { border-color:var(--ink); }
-  .input::placeholder { color:#C4C9D4; }
+  /* ── NAV ── */
+  .nav {
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,12,24,0.95);
+    backdrop-filter: blur(20px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 1px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    border: 1.5px solid var(--cyan);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 0 12px var(--glow);
+    position: relative;
+    overflow: hidden;
+  }
+  .logo-icon::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--glow) 0%, transparent 60%);
+  }
+  .nav-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    padding: 3px 10px;
+    border-radius: 3px;
+    letter-spacing: 1.5px;
+    background: var(--glow);
+  }
 
-  .card { background:var(--white); border:1px solid var(--line); border-radius:10px; }
+  /* ── BUTTONS ── */
+  .btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 9px 22px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .btn-primary {
+    background: var(--cyan);
+    color: var(--bg);
+    border-color: var(--cyan);
+    font-weight: 700;
+    box-shadow: 0 0 20px rgba(0,229,255,0.25);
+  }
+  .btn-primary:hover {
+    background: #33EEFF;
+    box-shadow: 0 0 30px rgba(0,229,255,0.4);
+    transform: translateY(-1px);
+  }
+  .btn-primary:disabled { background: var(--text3); border-color: var(--text3); box-shadow: none; cursor: not-allowed; transform: none; color: var(--bg2); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border-color: var(--border2);
+  }
+  .btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); background: var(--glow); }
 
-  .phase-row { background:var(--white); border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:border-color 0.15s, box-shadow 0.15s; }
-  .phase-row:hover { border-color:#9CA3AF; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
-  .phase-row.open { border-color:var(--ink); border-radius:8px 8px 0 0; border-bottom-color:transparent; }
-  .phase-body { background:var(--warm); border:1px solid var(--ink); border-top:none; border-radius:0 0 8px 8px; padding:20px 22px 24px; }
+  /* ── INPUT ── */
+  .input {
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 11px 14px;
+    width: 100%;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .input:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px var(--glow);
+  }
+  .input::placeholder { color: var(--text3); }
 
-  .label { font-size:10px; font-weight:600; letter-spacing:1.8px; color:var(--faint); text-transform:uppercase; margin-bottom:10px; }
+  /* ── PANEL ── */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.4;
+  }
 
-  .exp-btn { font-family:'Geist',sans-serif; font-size:12px; font-weight:500; border-radius:5px; padding:7px 14px; cursor:pointer; border:1px solid var(--line); background:var(--white); color:var(--ink2); transition:all 0.15s; display:flex; align-items:center; gap:5px; }
-  .exp-btn:hover { background:var(--ink); color:#fff; border-color:var(--ink); }
+  /* ── PHASE CARD ── */
+  .phase-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .phase-card:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,229,255,0.08); }
+  .phase-card.open {
+    border-color: var(--cyan);
+    border-radius: 8px 8px 0 0;
+    border-bottom-color: transparent;
+    box-shadow: 0 0 24px rgba(0,229,255,0.1);
+  }
+  .phase-body {
+    background: var(--bg2);
+    border: 1px solid var(--cyan);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 20px 22px 24px;
+  }
 
-  .connector { width:1px; height:24px; background:var(--line); margin:0 auto; }
+  /* ── LABEL ── */
+  .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--cyan);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
 
-  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  /* ── EXPORT BTN ── */
+  .exp-btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 5px;
+    padding: 7px 14px;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--panel);
+    color: var(--text2);
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 5px;
+    letter-spacing: 0.3px;
+  }
+  .exp-btn:hover { border-color: var(--cyan); color: var(--cyan); background: var(--glow); box-shadow: 0 0 12px rgba(0,229,255,0.1); }
+
+  /* ── CONNECTOR ── */
+  .connector {
+    display: flex; flex-direction: column; align-items: center;
+    height: 28px; gap: 0;
+  }
+  .connector-line { width: 1px; flex: 1; background: linear-gradient(180deg, var(--cyan), transparent); opacity: 0.4; }
+  .connector-arrow { font-size: 12px; color: var(--cyan); opacity: 0.5; line-height: 1; }
+
+  /* ── GRID LINES BG ── */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ── SCAN LINE ANIMATION ── */
+  .scanline {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.01) 2px, rgba(0,229,255,0.01) 4px);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── CORNER DECORATION ── */
+  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute; width: 12px; height: 12px;
+    border-color: var(--cyan); border-style: solid; opacity: 0.5;
+  }
+  .corner-tl { top: 0; left: 0; border-width: 1.5px 0 0 1.5px; border-radius: 3px 0 0 0; }
+  .corner-tr { top: 0; right: 0; border-width: 1.5px 1.5px 0 0; border-radius: 0 3px 0 0; }
+  .corner-bl { bottom: 0; left: 0; border-width: 0 0 1.5px 1.5px; border-radius: 0 0 0 3px; }
+  .corner-br { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; border-radius: 0 0 3px 0; }
+
+  /* ── BADGE ── */
+  .badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  /* ── FLOW DIAGRAM (hero visual) ── */
+  .flow-vis {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 18px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .flow-node {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .flow-arrow { color: var(--cyan); opacity: 0.6; font-size: 14px; flex-shrink: 0; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  .fade-up { animation: fadeUp 0.4s ease both; }
+  @keyframes glowPulse { 0%,100%{box-shadow:0 0 12px var(--glow)} 50%{box-shadow:0 0 28px rgba(0,229,255,0.3)} }
+  @keyframes scanMove { from{transform:translateY(-100%)} to{transform:translateY(100vh)} }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes typeIn { from{width:0} to{width:100%} }
+  @keyframes flowPulse { 0%,100%{opacity:0.5;transform:scaleX(1)} 50%{opacity:1;transform:scaleX(1.02)} }
+
+  .fade-up { animation: fadeUp 0.45s ease both; }
+  .fade-up-1 { animation: fadeUp 0.45s 0.06s ease both; }
+  .fade-up-2 { animation: fadeUp 0.45s 0.12s ease both; }
+  .fade-up-3 { animation: fadeUp 0.45s 0.18s ease both; }
+  .fade-up-4 { animation: fadeUp 0.45s 0.24s ease both; }
+  .fade-up-5 { animation: fadeUp 0.45s 0.30s ease both; }
 `;
+
+// ── ANIMATED FLOW DIAGRAM ─────────────────────────────────────────────────────
+function FlowDiagramVis() {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStep(s => (s + 1) % 4), 1200);
+    return () => clearInterval(t);
+  }, []);
+  const nodes = [
+    { label: "TRANSCRIPT", color: "#00E5FF" },
+    { label: "AI ANALYSIS", color: "#7C3AED" },
+    { label: "FLOWCHART", color: "#10B981" },
+    { label: "EXPORT", color: "#F59E0B" },
+  ];
+  return (
+    <div className="flow-vis">
+      {nodes.map((n, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="flow-node" style={{
+            border: `1px solid ${n.color}${step >= i ? "99" : "33"}`,
+            color: step >= i ? n.color : "#475569",
+            background: step >= i ? `${n.color}11` : "transparent",
+            transition: "all 0.4s",
+            boxShadow: step >= i ? `0 0 12px ${n.color}22` : "none",
+          }}>{n.label}</div>
+          {i < nodes.length - 1 && (
+            <div className="flow-arrow" style={{ opacity: step > i ? 0.9 : 0.2, transition: "opacity 0.4s" }}>→</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── API KEY SCREEN ─────────────────────────────────────────────────────────────
 function ApiKeyScreen({ onSave }) {
@@ -202,7 +470,8 @@ function ApiKeyScreen({ onSave }) {
     setTesting(true); setError("");
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        method: "POST",
+        headers: { "Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
         body: JSON.stringify({ model:"claude-haiku-4-5-20251001", max_tokens:10, messages:[{role:"user",content:"hi"}] })
       });
       if (!r.ok) { const e=await r.json(); throw new Error(e?.error?.message||"Invalid key"); }
@@ -211,39 +480,71 @@ function ApiKeyScreen({ onSave }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"var(--surface)", display:"flex", flexDirection:"column" }}>
+    <div style={{ minHeight:"100vh", background:"var(--bg)" }} className="grid-bg">
       <style>{GCSS}</style>
+      <div className="scanline"/>
+
       <nav className="nav">
-        <div className="nav-logo"><div className="nav-dot"/> MindMap AI</div>
-      </nav>
-      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 20px" }}>
-        <div style={{ width:"100%", maxWidth:"380px" }} className="fade-up">
-          <div style={{ textAlign:"center", marginBottom:"40px" }}>
-            <div style={{ fontSize:"40px", marginBottom:"16px", lineHeight:1 }}>◈</div>
-            <h1 style={{ fontFamily:"'Fraunces',serif", fontSize:"26px", fontWeight:300, letterSpacing:"-0.5px", marginBottom:"8px" }}>MindMap AI</h1>
-            <p style={{ fontSize:"14px", color:"var(--muted)", lineHeight:1.65 }}>Turn any transcript into a clean, exportable flowchart.</p>
-          </div>
-          <div className="card" style={{ padding:"24px" }}>
-            <div className="label">API Key</div>
-            <div style={{ display:"flex", gap:"8px", marginBottom:"12px" }}>
-              <input className="input" type={show?"text":"password"} value={key} onChange={e=>{setKey(e.target.value);setError("");}} placeholder="sk-ant-api03-…" onKeyDown={e=>e.key==="Enter"&&handleSave()} style={{flex:1}}/>
-              <button className="btn btn-ghost" onClick={()=>setShow(!show)} style={{padding:"9px 12px",flexShrink:0}}>{show?"Hide":"Show"}</button>
-            </div>
-            {error && <div style={{fontSize:"13px",color:"#DC2626",marginBottom:"12px",padding:"8px 12px",background:"#FEF2F2",borderRadius:"6px",border:"1px solid #FECACA"}}>{error}</div>}
-            <button className="btn btn-primary" onClick={handleSave} disabled={!key||testing} style={{width:"100%"}}>{testing?"Verifying…":"Continue →"}</button>
-            <div style={{marginTop:"20px",paddingTop:"20px",borderTop:"1px solid var(--line)"}}>
-              <div className="label">How to get your key</div>
-              {[["1","Go to console.anthropic.com"],["2","Sign up or log in"],["3","API Keys → Create Key"],["4","Paste it above"]].map(([n,t])=>(
-                <div key={n} style={{display:"flex",gap:"12px",marginBottom:"8px"}}>
-                  <span style={{fontSize:"11px",color:"var(--faint)",minWidth:"16px",paddingTop:"1px"}}>{n}.</span>
-                  <span style={{fontSize:"13px",color:"var(--muted)"}}>{t}</span>
-                </div>
-              ))}
-              <div style={{marginTop:"12px",fontSize:"12px",color:"#059669"}}>～ $0.001 per analysis</div>
-            </div>
-          </div>
-          <p style={{textAlign:"center",fontSize:"11px",color:"var(--faint)",marginTop:"14px"}}>Key stored in browser session only.</p>
+        <div className="nav-logo">
+          <div className="logo-icon">⬡</div>
+          FLOWSCRIBE
         </div>
+        <div className="nav-tag">AI POWERED</div>
+      </nav>
+
+      <div style={{ maxWidth:"480px", margin:"0 auto", padding:"60px 24px" }}>
+
+        {/* Hero text */}
+        <div className="fade-up" style={{ marginBottom:"40px" }}>
+          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"11px", color:"var(--cyan)", letterSpacing:"3px", marginBottom:"16px", opacity:0.8 }}>
+            TRANSCRIPT → FLOWCHART ENGINE
+          </div>
+          <h1 style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(28px,4vw,40px)", fontWeight:800, lineHeight:1.1, letterSpacing:"-0.5px", marginBottom:"14px", color:"var(--text)" }}>
+            Transform documents<br/>
+            <span style={{ color:"var(--cyan)", textShadow:"0 0 30px rgba(0,229,255,0.4)" }}>into visual flowcharts</span>
+          </h1>
+          <p style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.7, marginBottom:"20px" }}>
+            Paste any meeting transcript, SOP, or document. Our AI extracts the process, maps the actors, and builds an interactive flowchart — ready to export in seconds.
+          </p>
+          <FlowDiagramVis/>
+        </div>
+
+        {/* Key card */}
+        <div className="panel fade-up-1" style={{ padding:"24px" }}>
+          <div className="corner-tl"/><div className="corner-tr"/><div className="corner-bl"/><div className="corner-br"/>
+          <div className="label" style={{ marginBottom:"14px" }}>// API KEY REQUIRED</div>
+          <div style={{ display:"flex", gap:"8px", marginBottom:"12px" }}>
+            <input className="input" type={show?"text":"password"} value={key}
+              onChange={e=>{setKey(e.target.value);setError("");}}
+              placeholder="sk-ant-api03-…"
+              onKeyDown={e=>e.key==="Enter"&&handleSave()}
+              style={{ flex:1, fontFamily:"'Space Mono',monospace", fontSize:"13px" }}
+            />
+            <button className="btn btn-ghost" onClick={()=>setShow(!show)} style={{padding:"9px 12px",flexShrink:0,fontSize:"12px"}}>{show?"HIDE":"SHOW"}</button>
+          </div>
+          {error && <div style={{fontSize:"13px",color:"var(--red)",marginBottom:"12px",padding:"8px 12px",background:"rgba(239,68,68,0.1)",borderRadius:"6px",border:"1px solid rgba(239,68,68,0.3)",fontFamily:"'Space Mono',monospace",fontSize:"12px"}}>⚠ {error}</div>}
+          <button className="btn btn-primary" onClick={handleSave} disabled={!key||testing} style={{width:"100%",fontSize:"14px",letterSpacing:"1px"}}>
+            {testing ? "VERIFYING..." : "INITIALIZE →"}
+          </button>
+
+          <div style={{marginTop:"20px",paddingTop:"20px",borderTop:"1px solid var(--border)"}}>
+            <div className="label" style={{marginBottom:"12px"}}>// GET YOUR KEY</div>
+            {[["01","Visit console.anthropic.com"],["02","Create account or sign in"],["03","API Keys → Create New Key"],["04","Paste above and initialize"]].map(([n,t])=>(
+              <div key={n} style={{display:"flex",gap:"14px",marginBottom:"9px",alignItems:"flex-start"}}>
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--cyan)",opacity:0.5,minWidth:"22px",paddingTop:"2px"}}>{n}</span>
+                <span style={{fontSize:"13px",color:"var(--text2)"}}>{t}</span>
+              </div>
+            ))}
+            <div style={{marginTop:"14px",fontSize:"12px",color:"var(--green)",fontFamily:"'Space Mono',monospace",display:"flex",alignItems:"center",gap:"8px"}}>
+              <span style={{animation:"pulse 2s infinite",display:"inline-block",width:"6px",height:"6px",borderRadius:"50%",background:"var(--green)"}}/>
+              ~$0.001 per analysis
+            </div>
+          </div>
+        </div>
+
+        <p style={{textAlign:"center",fontSize:"11px",color:"var(--text3)",marginTop:"16px",fontFamily:"'Space Mono',monospace",letterSpacing:"0.5px"}}>
+          KEY STORED IN SESSION ONLY · NO DATA RETAINED
+        </p>
       </div>
     </div>
   );
@@ -254,16 +555,16 @@ function ExportBar({ data }) {
   const [busy, setBusy] = useState(null);
   const go = (type, fn) => { setBusy(type); setTimeout(()=>{fn(data);setBusy(null);},200); };
   const exports = [
-    {type:"html",icon:"↗",label:"HTML",fn:doExportHTML},
-    {type:"word",icon:"↗",label:"Word",fn:doExportWord},
-    {type:"pdf", icon:"↗",label:"PDF", fn:doExportPDF},
-    {type:"ppt", icon:"↗",label:"Slides",fn:doExportPPT},
+    {type:"html",label:"HTML",fn:doExportHTML},
+    {type:"word",label:"WORD",fn:doExportWord},
+    {type:"pdf", label:"PDF", fn:doExportPDF},
+    {type:"ppt", label:"SLIDES",fn:doExportPPT},
   ];
   return (
     <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-      {exports.map(({type,icon,label,fn})=>(
+      {exports.map(({type,label,fn})=>(
         <button key={type} className="exp-btn" onClick={()=>go(type,fn)} disabled={!!busy}>
-          {busy===type?"…":icon} {label}
+          {busy===type?"...":"↗"} {label}
         </button>
       ))}
     </div>
@@ -277,67 +578,121 @@ function ResultView({ data }) {
   const ga = (actorId) => data.actors?.find(a=>a.id===actorId);
 
   return (
-    <div style={{maxWidth:"720px",margin:"0 auto",padding:"0 24px 80px"}}>
+    <div style={{ maxWidth:"800px", margin:"0 auto", padding:"0 24px 80px" }}>
+
       {/* Header */}
-      <div style={{paddingTop:"52px",paddingBottom:"36px",borderBottom:"1px solid var(--line)",marginBottom:"36px"}}>
-        <div style={{fontSize:"11px",letterSpacing:"2px",color:"var(--faint)",textTransform:"uppercase",marginBottom:"14px"}}>Analysis complete</div>
-        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(22px,3.5vw,32px)",fontWeight:300,letterSpacing:"-0.5px",marginBottom:"10px",lineHeight:1.2}}>{data.title}</h1>
-        <p style={{fontSize:"15px",color:"var(--muted)",lineHeight:1.65,marginBottom:"20px",maxWidth:"520px"}}>{data.summary}</p>
-        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"24px"}}>
-          {(data.actors||[]).map(a=>(
-            <div key={a.id} style={{padding:"4px 12px",border:"1px solid var(--line)",borderRadius:"4px",fontSize:"13px",color:"var(--ink2)",background:"var(--white)"}}>{a.emoji} {a.name}</div>
+      <div style={{ paddingTop:"48px", paddingBottom:"32px", borderBottom:"1px solid var(--border)", marginBottom:"32px" }}>
+        <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"10px", color:"var(--cyan)", letterSpacing:"3px", marginBottom:"14px", opacity:0.8 }}>
+          // FLOWCHART GENERATED
+        </div>
+        <h1 className="fade-up" style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(22px,3vw,32px)", fontWeight:800, letterSpacing:"-0.5px", marginBottom:"10px", color:"var(--text)" }}>
+          {data.title}
+        </h1>
+        <p className="fade-up-1" style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.65, marginBottom:"20px", maxWidth:"580px" }}>
+          {data.summary}
+        </p>
+
+        {/* Actors */}
+        <div className="fade-up-2" style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"24px" }}>
+          {(data.actors||[]).map((a, i) => (
+            <div key={a.id} className="badge" style={{ color:COLORS[i%COLORS.length], borderColor:`${COLORS[i%COLORS.length]}44`, background:`${COLORS[i%COLORS.length]}0D` }}>
+              {a.emoji} {a.name}
+            </div>
           ))}
         </div>
-        <ExportBar data={data}/>
+
+        <div className="fade-up-3">
+          <div className="label" style={{marginBottom:"10px"}}>// EXPORT</div>
+          <ExportBar data={data}/>
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      <div className="fade-up-3" style={{ display:"flex", gap:"24px", marginBottom:"32px", paddingBottom:"24px", borderBottom:"1px solid var(--border)" }}>
+        {[
+          {label:"PHASES", value:data.phases?.length||0},
+          {label:"ACTORS", value:data.actors?.length||0},
+          {label:"INSIGHTS", value:data.keyInsights?.length||0},
+          {label:"DECISIONS", value:data.phases?.filter(p=>p.isDecision).length||0},
+        ].map(({label,value})=>(
+          <div key={label}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:"22px",fontWeight:700,color:"var(--cyan)"}}>{String(value).padStart(2,"0")}</div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:"9px",color:"var(--text3)",letterSpacing:"1.5px",marginTop:"2px"}}>{label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Phases */}
+      <div className="label" style={{marginBottom:"16px"}}>// PROCESS FLOW</div>
       <div>
         {(data.phases||[]).map((phase, index) => {
           const actor = ga(phase.actorId);
+          const color = gc(phase.actorId);
           const isOpen = active === phase.id;
           return (
-            <div key={phase.id} className="fade-up" style={{animationDelay:`${index*0.04}s`}}>
-              <div className={`phase-row${isOpen?" open":""}`} onClick={()=>setActive(isOpen?null:phase.id)}>
-                <div style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:"14px"}}>
-                  <span style={{fontSize:"20px",lineHeight:1,flexShrink:0}}>{phase.icon}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:"14px",fontWeight:500,color:"var(--ink)",marginBottom:"2px"}}>{phase.title}</div>
-                    <div style={{fontSize:"12px",color:"var(--faint)"}}>{actor?.emoji} {actor?.name}</div>
+            <div key={phase.id} className={`fade-up`} style={{ animationDelay:`${index*0.05}s` }}>
+              <div className={`phase-card${isOpen?" open":""}`} onClick={()=>setActive(isOpen?null:phase.id)}
+                style={{ borderColor: isOpen ? color : "var(--border)" }}>
+                {isOpen && <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${color},transparent)`}}/>}
+                <div style={{ padding:"15px 18px", display:"flex", alignItems:"center", gap:"14px" }}>
+                  <div style={{ width:"36px",height:"36px",borderRadius:"6px",border:`1px solid ${color}44`,background:`${color}0D`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0 }}>{phase.icon}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:"14px", fontWeight:600, color:"var(--text)", marginBottom:"3px" }}>{phase.title}</div>
+                    <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"10px", color, letterSpacing:"0.5px" }}>{actor?.emoji} {actor?.name}</div>
                   </div>
-                  <div style={{fontSize:"11px",color:"var(--faint)",letterSpacing:"1px",flexShrink:0}}>{String(index+1).padStart(2,"0")}</div>
-                  <div style={{color:"var(--faint)",fontSize:"18px",transition:"transform 0.2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)",marginLeft:"4px"}}>›</div>
+                  <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"11px", color:"var(--text3)", flexShrink:0 }}>
+                    {String(index+1).padStart(2,"0")}
+                  </div>
+                  <div style={{ width:"20px",height:"20px",border:`1px solid ${isOpen?color:"var(--border2)"}`,borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px",color:isOpen?color:"var(--text3)",transition:"all 0.2s",background:isOpen?`${color}11`:"transparent" }}>
+                    {isOpen?"−":"+"}
+                  </div>
                 </div>
               </div>
+
               {isOpen && (
-                <div className="phase-body">
-                  <p style={{fontSize:"13px",color:"var(--muted)",lineHeight:1.65,marginBottom:"20px",fontStyle:"italic"}}>{phase.description}</p>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"24px"}}>
+                <div className="phase-body" style={{borderColor:color}}>
+                  <p style={{ fontSize:"13px",color:"var(--text2)",lineHeight:1.65,marginBottom:"20px",padding:"10px 14px",background:`${color}08`,borderLeft:`2px solid ${color}55`,borderRadius:"0 6px 6px 0" }}>
+                    {phase.description}
+                  </p>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"24px" }}>
                     <div>
-                      <div className="label">Steps</div>
+                      <div className="label">// STEPS</div>
                       {phase.steps.map((step,i)=>(
-                        <div key={i} style={{display:"flex",gap:"12px",marginBottom:"10px",alignItems:"flex-start"}}>
-                          <span style={{fontSize:"11px",color:"var(--faint)",minWidth:"20px",paddingTop:"2px",flexShrink:0}}>{i+1}.</span>
-                          <span style={{fontSize:"13px",color:"var(--ink2)",lineHeight:1.55}}>{step}</span>
+                        <div key={i} style={{ display:"flex",gap:"12px",marginBottom:"10px",alignItems:"flex-start" }}>
+                          <span style={{ fontFamily:"'Space Mono',monospace",fontSize:"10px",color,opacity:0.7,minWidth:"22px",paddingTop:"3px",flexShrink:0 }}>{String(i+1).padStart(2,"0")}</span>
+                          <span style={{ fontSize:"13px",color:"var(--text2)",lineHeight:1.55 }}>{step}</span>
                         </div>
                       ))}
                       {phase.isDecision && (
-                        <div style={{marginTop:"14px",padding:"12px 14px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:"6px",fontSize:"12px"}}>
-                          <div style={{fontWeight:500,color:"var(--ink)",marginBottom:"6px"}}>◆ {phase.decisionQuestion}</div>
-                          <div style={{color:"#065F46",marginBottom:"3px"}}>Yes → {phase.decisionYes}</div>
-                          <div style={{color:"#991B1B"}}>No → {phase.decisionNo}</div>
+                        <div style={{ marginTop:"14px",padding:"12px 14px",background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:"6px",fontSize:"12px" }}>
+                          <div style={{ fontFamily:"'Space Mono',monospace",fontWeight:700,color:"#F59E0B",marginBottom:"7px",fontSize:"11px" }}>◆ DECISION POINT</div>
+                          <div style={{ color:"var(--text2)",marginBottom:"4px" }}>{phase.decisionQuestion}</div>
+                          <div style={{ color:"var(--green)",marginBottom:"3px",fontSize:"12px" }}>→ YES: {phase.decisionYes}</div>
+                          <div style={{ color:"var(--red)",fontSize:"12px" }}>→ NO: {phase.decisionNo}</div>
                         </div>
                       )}
                     </div>
                     <div>
-                      <div className="label">Output</div>
-                      <div style={{padding:"12px 14px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:"6px",fontSize:"13px",color:"var(--ink2)",lineHeight:1.55,marginBottom:"12px"}}>↳ {phase.output}</div>
-                      {phase.note && <div style={{padding:"10px 12px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:"6px",fontSize:"12px",color:"#92400E",lineHeight:1.5}}>⚠ {phase.note}</div>}
+                      <div className="label">// OUTPUT</div>
+                      <div style={{ padding:"12px 14px",background:`${color}0D`,border:`1px solid ${color}33`,borderRadius:"6px",fontSize:"13px",color:"var(--text)",lineHeight:1.55,marginBottom:"12px" }}>
+                        → {phase.output}
+                      </div>
+                      {phase.note && (
+                        <div style={{ padding:"10px 12px",background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:"6px",fontSize:"12px",color:"#FCD34D",lineHeight:1.5 }}>
+                          ⚠ {phase.note}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
-              {index < data.phases.length-1 && <div className="connector"/>}
+
+              {index < data.phases.length-1 && (
+                <div className="connector">
+                  <div className="connector-line" style={{background:`linear-gradient(180deg,${color}66,${gc(data.phases[index+1].actorId)}66)`}}/>
+                  <div className="connector-arrow">▼</div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -345,16 +700,18 @@ function ResultView({ data }) {
 
       {/* Insights */}
       {data.keyInsights?.length > 0 && (
-        <div className="card" style={{padding:"22px 24px",marginTop:"32px"}}>
-          <div className="label">Key Insights</div>
+        <div className="panel" style={{ padding:"22px 24px", marginTop:"32px" }}>
+          <div className="label">// KEY INSIGHTS</div>
           {data.keyInsights.map((ins,i)=>(
-            <div key={i} style={{fontSize:"13px",color:"var(--ink2)",marginBottom:"10px",paddingLeft:"14px",borderLeft:"2px solid var(--line)",lineHeight:1.65}}>{ins}</div>
+            <div key={i} style={{ fontSize:"13px",color:"var(--text2)",marginBottom:"12px",paddingLeft:"14px",borderLeft:`2px solid ${COLORS[i%COLORS.length]}44`,lineHeight:1.65,padding:"8px 14px",background:`${COLORS[i%COLORS.length]}06`,borderRadius:"0 6px 6px 0" }}>
+              {ins}
+            </div>
           ))}
         </div>
       )}
 
-      <div style={{marginTop:"36px",paddingTop:"24px",borderTop:"1px solid var(--line)"}}>
-        <div className="label">Export</div>
+      <div style={{ marginTop:"36px",paddingTop:"24px",borderTop:"1px solid var(--border)" }}>
+        <div className="label" style={{marginBottom:"12px"}}>// EXPORT DOCUMENT</div>
         <ExportBar data={data}/>
       </div>
     </div>
@@ -375,11 +732,11 @@ export default function App() {
   const fileRef = useRef(null);
 
   const run = useCallback(async (text, name) => {
-    setFileName(name); setStage("processing"); setProgress("Reading document…");
+    setFileName(name); setStage("processing"); setProgress("Reading document...");
     try {
-      setProgress("Analyzing with AI…");
+      setProgress("AI analyzing structure...");
       const result = await analyzeTranscript(text, apiKey);
-      setProgress("Building flowchart…");
+      setProgress("Rendering flowchart...");
       await new Promise(r => setTimeout(r, 300));
       setFlowData(result); setStage("result");
     } catch(err) { setErrorMsg(err.message||"Something went wrong."); setStage("error"); }
@@ -403,81 +760,109 @@ export default function App() {
   if (!apiKey) return <ApiKeyScreen onSave={setApiKey}/>;
 
   return (
-    <div style={{minHeight:"100vh",background:"var(--surface)"}}>
+    <div style={{ minHeight:"100vh", background:"var(--bg)" }} className="grid-bg">
       <style>{GCSS}</style>
+      <div className="scanline"/>
 
       <nav className="nav">
-        <div className="nav-logo"><div className="nav-dot"/> MindMap AI</div>
-        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          {stage==="result" && <button className="btn btn-ghost" onClick={reset} style={{padding:"7px 14px",fontSize:"12px"}}>← New analysis</button>}
-          <button onClick={()=>setApiKey("")} className="btn btn-ghost" style={{padding:"7px 14px",fontSize:"12px"}}>API Key</button>
+        <div className="nav-logo">
+          <div className="logo-icon">⬡</div>
+          FLOWSCRIBE
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+          {stage==="result" && <button className="btn btn-ghost" onClick={reset} style={{padding:"7px 14px",fontSize:"12px",letterSpacing:"0.5px"}}>← NEW</button>}
+          <button onClick={()=>setApiKey("")} className="btn btn-ghost" style={{padding:"7px 14px",fontSize:"12px",letterSpacing:"0.5px"}}>API KEY</button>
+          <div className="nav-tag">ONLINE</div>
         </div>
       </nav>
 
       {/* Upload */}
       {stage==="upload" && (
-        <div style={{maxWidth:"560px",margin:"0 auto",padding:"64px 24px"}} className="fade-up">
-          <div style={{marginBottom:"48px"}}>
-            <div style={{fontSize:"11px",letterSpacing:"2px",color:"var(--faint)",textTransform:"uppercase",marginBottom:"16px"}}>Transcript → Flowchart</div>
-            <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(26px,4vw,40px)",fontWeight:300,letterSpacing:"-1px",lineHeight:1.1,marginBottom:"14px",color:"var(--ink)"}}>
-              Turn any meeting into<br/>a structured document.
+        <div style={{ maxWidth:"640px", margin:"0 auto", padding:"56px 24px" }}>
+
+          {/* Hero */}
+          <div className="fade-up" style={{ marginBottom:"44px" }}>
+            <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"11px", color:"var(--cyan)", letterSpacing:"3px", marginBottom:"16px", opacity:0.8 }}>
+              TRANSCRIPT → FLOWCHART ENGINE
+            </div>
+            <h1 style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(28px,4vw,44px)", fontWeight:800, lineHeight:1.08, letterSpacing:"-1px", marginBottom:"14px", color:"var(--text)" }}>
+              Turn meetings &amp; docs<br/>
+              <span style={{ color:"var(--cyan)", textShadow:"0 0 40px rgba(0,229,255,0.35)" }}>into smart flowcharts</span>
             </h1>
-            <p style={{fontSize:"14px",color:"var(--muted)",lineHeight:1.7,maxWidth:"400px"}}>
-              Upload a transcript or paste text — get a clean flowchart you can export to Word, PDF, or PowerPoint.
+            <p style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.7, maxWidth:"500px", marginBottom:"20px" }}>
+              Upload any transcript, SOP, or process document. The AI reads it, maps every actor, step, and decision — then builds an interactive flowchart you can export instantly.
             </p>
+            <FlowDiagramVis/>
           </div>
 
           {/* Drop zone */}
-          <div
-            onDragOver={e=>{e.preventDefault();setDragOver(true);}}
-            onDragLeave={()=>setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={()=>fileRef.current?.click()}
-            style={{
-              border:`1px dashed ${dragOver?"var(--ink)":"#D1D5DB"}`,
-              borderRadius:"8px", padding:"40px 32px", textAlign:"center", cursor:"pointer",
-              background:dragOver?"#F3F4F6":"var(--white)", transition:"all 0.15s", marginBottom:"12px",
-            }}
-          >
-            <div style={{fontSize:"26px",marginBottom:"10px",opacity:dragOver?1:0.4}}>↑</div>
-            <div style={{fontSize:"14px",fontWeight:500,color:"var(--ink)",marginBottom:"4px"}}>Drop a file here</div>
-            <div style={{fontSize:"13px",color:"var(--faint)",marginBottom:"14px"}}>or click to browse</div>
-            <div style={{display:"flex",gap:"6px",justifyContent:"center",flexWrap:"wrap"}}>
-              {[".TXT",".MD",".CSV",".DOCX",".PDF"].map(e=>(
-                <span key={e} style={{fontSize:"11px",color:"var(--faint)",padding:"2px 8px",border:"1px solid var(--line)",borderRadius:"3px",letterSpacing:"0.5px"}}>{e}</span>
-              ))}
+          <div className="fade-up-1" style={{ position:"relative", marginBottom:"14px" }}>
+            <div
+              onDragOver={e=>{e.preventDefault();setDragOver(true);}}
+              onDragLeave={()=>setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={()=>fileRef.current?.click()}
+              style={{
+                border:`1px dashed ${dragOver?"var(--cyan)":"var(--border2)"}`,
+                borderRadius:"10px", padding:"44px 32px", textAlign:"center", cursor:"pointer",
+                background: dragOver ? "rgba(0,229,255,0.05)" : "var(--panel)",
+                transition:"all 0.2s",
+                boxShadow: dragOver ? "0 0 30px rgba(0,229,255,0.1), inset 0 0 30px rgba(0,229,255,0.03)" : "none",
+                position:"relative", overflow:"hidden",
+              }}
+            >
+              {dragOver && <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:"linear-gradient(90deg,transparent,var(--cyan),transparent)"}}/>}
+              <div style={{ fontSize:"32px", marginBottom:"12px", opacity: dragOver ? 1 : 0.5 }}>⬆</div>
+              <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:"16px", fontWeight:600, color:"var(--text)", marginBottom:"5px" }}>
+                Drop your document here
+              </div>
+              <div style={{ fontSize:"13px", color:"var(--text3)", marginBottom:"16px" }}>or click to browse files</div>
+              <div style={{ display:"flex", gap:"6px", justifyContent:"center", flexWrap:"wrap" }}>
+                {[".TXT",".MD",".CSV",".DOCX",".PDF"].map(e=>(
+                  <span key={e} className="badge" style={{color:"var(--cyan)",borderColor:"var(--border2)",background:"transparent",fontSize:"10px"}}>{e}</span>
+                ))}
+              </div>
             </div>
           </div>
           <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
 
-          <div style={{display:"flex",alignItems:"center",gap:"14px",margin:"20px 0"}}>
-            <div style={{flex:1,height:"1px",background:"var(--line)"}}/>
-            <span style={{fontSize:"11px",color:"var(--faint)",letterSpacing:"1px"}}>OR</span>
-            <div style={{flex:1,height:"1px",background:"var(--line)"}}/>
+          <div className="fade-up-2" style={{ display:"flex", alignItems:"center", gap:"14px", margin:"18px 0" }}>
+            <div style={{flex:1,height:"1px",background:"var(--border)"}}/>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--text3)",letterSpacing:"2px"}}>OR</span>
+            <div style={{flex:1,height:"1px",background:"var(--border)"}}/>
           </div>
 
-          <div className="card" style={{overflow:"hidden",marginBottom:"28px"}}>
-            <div onClick={()=>setShowPaste(v=>!v)} style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:showPaste?"1px solid var(--line)":"none"}}>
-              <span style={{fontSize:"14px",fontWeight:500,color:"var(--ink)"}}>Paste text</span>
-              <span style={{color:"var(--faint)",transition:"transform 0.2s",display:"inline-block",transform:showPaste?"rotate(90deg)":"rotate(0)"}}>›</span>
+          {/* Paste */}
+          <div className="panel fade-up-3" style={{ overflow:"hidden", marginBottom:"28px" }}>
+            <div onClick={()=>setShowPaste(v=>!v)} style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:showPaste?"1px solid var(--border)":"none"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:"12px",color:"var(--cyan)"}}>{'>'}_</span>
+                <span style={{fontSize:"14px",fontWeight:500,color:"var(--text)"}}>Paste transcript or text</span>
+              </div>
+              <span style={{color:"var(--text3)",fontFamily:"'Space Mono',monospace",transition:"transform 0.2s",display:"inline-block",transform:showPaste?"rotate(90deg)":"rotate(0)"}}>›</span>
             </div>
             {showPaste && (
               <div style={{padding:"14px 18px 18px"}}>
-                <textarea className="input" value={pasteText} onChange={e=>setPasteText(e.target.value)} autoFocus placeholder="Paste meeting notes, transcript, SOP…" style={{minHeight:"130px",resize:"vertical",lineHeight:1.6}}/>
+                <textarea className="input" value={pasteText} onChange={e=>setPasteText(e.target.value)} autoFocus
+                  placeholder="// Paste meeting notes, transcript, SOPs, process docs..."
+                  style={{minHeight:"140px",resize:"vertical",lineHeight:1.65,fontFamily:"'Space Mono',monospace",fontSize:"12px"}}/>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}}>
-                  <span style={{fontSize:"12px",color:pasteText.length<50?"var(--faint)":"#059669"}}>{pasteText.length<50?`${pasteText.length} / 50 min`:`${pasteText.length} chars ✓`}</span>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:pasteText.length<50?"var(--text3)":"var(--green)"}}>
+                    {pasteText.length<50?`${pasteText.length}/50_MIN`:`${pasteText.length}_CHARS ✓`}
+                  </span>
                   <div style={{display:"flex",gap:"8px"}}>
-                    <button className="btn btn-ghost" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"7px 14px",fontSize:"12px"}}>Clear</button>
-                    <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&run(pasteText,"Pasted text")} disabled={pasteText.trim().length<50} style={{padding:"7px 18px",fontSize:"12px",opacity:pasteText.trim().length>=50?1:0.4}}>Analyze →</button>
+                    <button className="btn btn-ghost" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"7px 14px",fontSize:"12px",letterSpacing:"0.5px"}}>CLEAR</button>
+                    <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&run(pasteText,"Pasted text")} disabled={pasteText.trim().length<50}
+                      style={{padding:"7px 20px",fontSize:"12px",letterSpacing:"1px",opacity:pasteText.trim().length>=50?1:0.4}}>ANALYZE →</button>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-            {["AI Analysis","Word Export","PDF","PowerPoint","HTML"].map(l=>(
-              <div key={l} style={{fontSize:"12px",color:"var(--faint)",padding:"4px 10px",border:"1px solid var(--line)",borderRadius:"4px"}}>{l}</div>
+          <div className="fade-up-4" style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+            {["AI ANALYSIS","WORD EXPORT","PDF","POWERPOINT","HTML"].map(l=>(
+              <div key={l} className="badge" style={{color:"var(--text3)",borderColor:"var(--border)",fontSize:"10px",letterSpacing:"1px"}}>{l}</div>
             ))}
           </div>
         </div>
@@ -485,40 +870,46 @@ export default function App() {
 
       {/* Processing */}
       {stage==="processing" && (
-        <div style={{maxWidth:"400px",margin:"100px auto",textAlign:"center",padding:"0 24px"}} className="fade-up">
-          <div style={{fontSize:"30px",marginBottom:"20px",animation:"spin 3s linear infinite",display:"inline-block"}}>◈</div>
-          <h2 style={{fontFamily:"'Fraunces',serif",fontSize:"22px",fontWeight:300,marginBottom:"8px",letterSpacing:"-0.3px"}}>Analyzing document</h2>
-          <p style={{fontSize:"13px",color:"var(--muted)",marginBottom:"6px"}}>{progress}</p>
-          <p style={{fontSize:"12px",color:"var(--faint)",marginBottom:"32px"}}>{fileName}</p>
-          <div style={{display:"flex",flexDirection:"column",gap:"8px",textAlign:"left"}}>
-            {["Reading & parsing","Identifying actors","Extracting steps","Detecting decisions","Building flowchart"].map((s,i)=>(
-              <div key={s} style={{display:"flex",alignItems:"center",gap:"12px",padding:"10px 14px",background:"var(--white)",border:"1px solid var(--line)",borderRadius:"6px"}}>
-                <div style={{width:"6px",height:"6px",borderRadius:"50%",background:"var(--ink)",animation:`pulse ${1+i*0.15}s ease-in-out infinite`,flexShrink:0}}/>
-                <span style={{fontSize:"13px",color:"var(--muted)"}}>{s}</span>
-              </div>
-            ))}
+        <div style={{maxWidth:"440px",margin:"80px auto",textAlign:"center",padding:"0 24px"}}>
+          <div className="panel" style={{padding:"40px",display:"inline-block",width:"100%"}}>
+            <div className="corner-tl"/><div className="corner-tr"/><div className="corner-bl"/><div className="corner-br"/>
+            <div style={{width:"56px",height:"56px",border:"2px solid var(--cyan)",borderRadius:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",margin:"0 auto 20px",animation:"glowPulse 2s infinite",boxShadow:"0 0 24px rgba(0,229,255,0.2)"}}>⬡</div>
+            <h2 style={{fontFamily:"'Outfit',sans-serif",fontSize:"20px",fontWeight:700,marginBottom:"8px",color:"var(--text)"}}>Processing Document</h2>
+            <p style={{fontFamily:"'Space Mono',monospace",fontSize:"11px",color:"var(--cyan)",marginBottom:"6px",letterSpacing:"1px"}}>{progress}</p>
+            <p style={{fontSize:"12px",color:"var(--text3)",marginBottom:"28px",fontFamily:"'Space Mono',monospace"}}>// {fileName}</p>
+            <div style={{display:"flex",flexDirection:"column",gap:"8px",textAlign:"left"}}>
+              {["READING DOCUMENT","IDENTIFYING ACTORS","EXTRACTING STEPS","DETECTING DECISIONS","RENDERING FLOWCHART"].map((s,i)=>(
+                <div key={s} style={{display:"flex",alignItems:"center",gap:"12px",padding:"9px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"5px"}}>
+                  <div style={{width:"6px",height:"6px",borderRadius:"50%",background:"var(--cyan)",animation:`pulse ${1+i*0.2}s ease-in-out infinite`,flexShrink:0,boxShadow:"0 0 6px var(--cyan)"}}/>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--text2)",letterSpacing:"0.5px"}}>{s}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Result */}
-      {stage==="result" && flowData && <div className="fade-up"><ResultView data={flowData}/></div>}
+      {stage==="result" && flowData && <ResultView data={flowData}/>}
 
       {/* Error */}
       {stage==="error" && (
-        <div style={{maxWidth:"380px",margin:"100px auto",textAlign:"center",padding:"0 24px"}} className="fade-up">
-          <div style={{fontSize:"30px",marginBottom:"16px"}}>✕</div>
-          <h2 style={{fontFamily:"'Fraunces',serif",fontSize:"22px",fontWeight:300,marginBottom:"10px"}}>Something went wrong</h2>
-          <div style={{fontSize:"13px",color:"#DC2626",padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:"6px",marginBottom:"24px",lineHeight:1.5}}>{errorMsg}</div>
-          <div style={{display:"flex",gap:"8px",justifyContent:"center"}}>
-            <button className="btn btn-primary" onClick={reset}>Try again</button>
-            <button className="btn btn-ghost" onClick={()=>setApiKey("")}>Change key</button>
+        <div style={{maxWidth:"400px",margin:"80px auto",textAlign:"center",padding:"0 24px"}}>
+          <div className="panel" style={{padding:"32px"}}>
+            <div className="corner-tl"/><div className="corner-tr"/><div className="corner-bl"/><div className="corner-br"/>
+            <div style={{fontSize:"32px",marginBottom:"16px",color:"var(--red)"}}>✕</div>
+            <h2 style={{fontFamily:"'Outfit',sans-serif",fontSize:"20px",fontWeight:700,marginBottom:"10px",color:"var(--text)"}}>Error Occurred</h2>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:"12px",color:"var(--red)",padding:"10px 14px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:"6px",marginBottom:"24px",lineHeight:1.6}}>{errorMsg}</div>
+            <div style={{display:"flex",gap:"8px",justifyContent:"center"}}>
+              <button className="btn btn-primary" onClick={reset} style={{letterSpacing:"1px"}}>RETRY</button>
+              <button className="btn btn-ghost" onClick={()=>setApiKey("")} style={{letterSpacing:"0.5px"}}>CHANGE KEY</button>
+            </div>
           </div>
         </div>
       )}
 
-      <div style={{textAlign:"center",padding:"24px",borderTop:"1px solid var(--line)",marginTop:"20px"}}>
-        <span style={{fontSize:"11px",color:"var(--faint)",letterSpacing:"1.5px",textTransform:"uppercase"}}>MindMap AI</span>
+      <div style={{textAlign:"center",padding:"24px",borderTop:"1px solid var(--border)",marginTop:"20px"}}>
+        <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--text3)",letterSpacing:"2px"}}>FLOWSCRIBE AI · TRANSCRIPT INTELLIGENCE</span>
       </div>
     </div>
   );
