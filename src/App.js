@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const COLORS = ["#00E5FF","#7C3AED","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6","#8B5CF6"];
+const COLORS = ["#6366F1","#8B5CF6","#06B6D4","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6"];
 
 const extractJSON = (text) => {
   try {
@@ -27,38 +27,36 @@ async function analyzeTranscript(text, apiKey) {
   return parsed;
 }
 
-// ── EXPORTS (unchanged logic) ──────────────────────────────────────────────────
 function doExportHTML(data) {
   const gc=(idx)=>COLORS[idx%COLORS.length];
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0A0E1A;font-family:'Segoe UI',sans-serif;padding:40px 20px;color:#E2E8F0}
-.w{max-width:780px;margin:0 auto}h1{font-size:26px;font-weight:700;color:#00E5FF;text-align:center;margin-bottom:8px}
-.sum{text-align:center;color:#94A3B8;margin-bottom:20px}.acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
-.act{padding:4px 14px;border-radius:4px;font-size:12px;font-weight:600;border:1px solid #00E5FF44;color:#00E5FF;background:#00E5FF11}
-.phase{background:#0F1629;border-radius:8px;padding:18px;margin-bottom:4px;border:1px solid #1E293B}
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#F8F9FF;font-family:'Segoe UI',sans-serif;padding:40px 20px}
+.w{max-width:780px;margin:0 auto}h1{font-size:26px;font-weight:700;color:#0F172A;text-align:center;margin-bottom:8px}
+.sum{text-align:center;color:#64748B;margin-bottom:20px}.acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
+.act{padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+.phase{background:#fff;border-radius:12px;padding:18px;margin-bottom:4px;border:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.lbl{font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:8px;color:#00E5FF;text-transform:uppercase}
-.step{display:flex;gap:8px;margin-bottom:6px;font-size:13px;color:#CBD5E1}
-.out{border-radius:6px;padding:10px;font-size:13px;margin-bottom:8px;background:#00E5FF0A;border:1px solid #00E5FF33}
-.arr{text-align:center;font-size:20px;color:#00E5FF44;margin:4px 0}
-.footer{text-align:center;margin-top:20px;font-size:11px;color:#475569;letter-spacing:2px}</style></head><body>
+.lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:8px;color:#94A3B8;text-transform:uppercase}
+.step{display:flex;gap:8px;margin-bottom:6px;font-size:13px;color:#475569}
+.out{border-radius:8px;padding:10px;font-size:13px;margin-bottom:8px}
+.arr{text-align:center;font-size:20px;color:#6366F1;margin:4px 0}
+.footer{text-align:center;margin-top:32px;font-size:11px;color:#94A3B8;letter-spacing:1px}</style></head><body>
 <div class="w"><h1>${data.title}</h1><p class="sum">${data.summary}</p>
-<div class="acts">${(data.actors||[]).map(a=>`<div class="act">${a.emoji} ${a.name}</div>`).join("")}</div>
-${(data.phases||[]).map((p,idx)=>{const actor=data.actors?.find(a=>a.id===p.actorId);return`
+<div class="acts">${(data.actors||[]).map((a,i)=>`<div class="act" style="color:${gc(i)};border-color:${gc(i)}33;background:${gc(i)}0D">${a.emoji} ${a.name}</div>`).join("")}</div>
+${(data.phases||[]).map((p,idx)=>{const c=gc(data.actors?.findIndex(a=>a.id===p.actorId)??0);const actor=data.actors?.find(a=>a.id===p.actorId);return`
 <div class="phase"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-<span style="font-size:20px">${p.icon}</span>
-<div><div style="font-size:14px;font-weight:600;color:#E2E8F0">${p.title}</div>
-<div style="font-size:11px;color:#00E5FF">${actor?.emoji} ${actor?.name} · Step ${idx+1}</div></div></div>
+<div style="width:40px;height:40px;border-radius:10px;background:${c}15;border:1px solid ${c}33;display:flex;align-items:center;justify-content:center;font-size:18px">${p.icon}</div>
+<div><div style="font-size:14px;font-weight:600;color:#0F172A">${p.title}</div><div style="font-size:11px;color:${c};font-weight:600">${actor?.emoji} ${actor?.name}</div></div>
+<div style="margin-left:auto;background:${c}15;color:${c};border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700">STEP ${idx+1}</div></div>
 <div class="grid"><div><div class="lbl">Steps</div>
-${p.steps.map((s,i)=>`<div class="step"><span style="color:#00E5FF;min-width:20px;font-size:11px">${i+1}.</span><span>${s}</span></div>`).join("")}
-${p.isDecision?`<div style="background:#F59E0B11;border:1px solid #F59E0B44;border-radius:6px;padding:10px;font-size:12px;margin-top:10px;color:#FCD34D"><b>◆ ${p.decisionQuestion}</b><br/>✓ ${p.decisionYes}<br/>✗ ${p.decisionNo}</div>`:""}
+${p.steps.map((s,i)=>`<div class="step"><span style="background:${c}15;color:${c};width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${i+1}</span><span>${s}</span></div>`).join("")}
 </div><div><div class="lbl">Output</div>
-<div class="out">→ ${p.output}</div>
-${p.note?`<div style="font-size:12px;color:#FCD34D;padding:8px;background:#F59E0B11;border-radius:6px;border:1px solid #F59E0B33">⚠ ${p.note}</div>`:""}</div></div></div>
+<div class="out" style="background:${c}0D;border:1px solid ${c}22">✓ ${p.output}</div>
+${p.note?`<div style="font-size:12px;color:#92400E;padding:8px 10px;background:#FFFBEB;border-radius:6px;border:1px solid #FDE68A">⚠ ${p.note}</div>`:""}</div></div></div>
 ${idx<data.phases.length-1?`<div class="arr">↓</div>`:""}`}).join("")}
-<div style="background:#0F1629;border-radius:8px;padding:20px;margin-top:16px;border:1px solid #1E293B">
+<div style="background:#fff;border-radius:12px;padding:20px;margin-top:16px;border:1px solid #E2E8F0">
 <div class="lbl">Key Insights</div>
-${(data.keyInsights||[]).map(i=>`<div style="font-size:13px;color:#CBD5E1;margin-bottom:8px;padding-left:12px;border-left:2px solid #00E5FF44;line-height:1.6">${i}</div>`).join("")}</div>
+${(data.keyInsights||[]).map(i=>`<div style="font-size:13px;color:#475569;margin-bottom:8px;padding-left:12px;border-left:3px solid #6366F133;line-height:1.6">${i}</div>`).join("")}</div>
 <div class="footer">FLOWSCRIBE AI</div></div></body></html>`;
   const b=new Blob([html],{type:"text/html"});const u=URL.createObjectURL(b);
   const a=document.createElement("a");a.href=u;a.download=`${data.title.replace(/\s+/g,"_")}.html`;a.click();URL.revokeObjectURL(u);
@@ -66,14 +64,14 @@ ${(data.keyInsights||[]).map(i=>`<div style="font-size:13px;color:#CBD5E1;margin
 
 function doExportWord(data) {
   const phases=data.phases||[];const actors=data.actors||[];
-  const body=`<h1 style="color:#1E40AF">${data.title}</h1><p style="color:#64748B;font-style:italic">${data.summary}</p><br/>
+  const body=`<h1 style="color:#4F46E5">${data.title}</h1><p style="color:#64748B;font-style:italic">${data.summary}</p><br/>
 <h2>Participants</h2>
 <table border="1" cellpadding="8" style="border-collapse:collapse;width:100%;margin-bottom:20px">
-<tr style="background:#EFF6FF"><th>Actor</th><th>Name</th></tr>
+<tr style="background:#EEF2FF"><th>Actor</th><th>Name</th></tr>
 ${actors.map(a=>`<tr><td>${a.emoji}</td><td>${a.name}</td></tr>`).join("")}
 </table>
 ${phases.map((p,i)=>{const actor=actors.find(a=>a.id===p.actorId);return`
-<h3 style="color:#1E40AF">Step ${i+1}: ${p.title}</h3>
+<h3 style="color:#4F46E5">Step ${i+1}: ${p.title}</h3>
 <p><b>Owner:</b> ${actor?.emoji} ${actor?.name}</p><p><i>${p.description}</i></p>
 <ol>${p.steps.map(s=>`<li>${s}</li>`).join("")}</ol>
 <p><b>Output:</b> ${p.output}</p>${p.note?`<p><b>Note:</b> ${p.note}</p>`:""}<hr/>`}).join("")}
@@ -84,373 +82,331 @@ ${phases.map((p,i)=>{const actor=actors.find(a=>a.id===p.actorId);return`
 }
 
 function doExportPDF(data) {
+  const gc=(idx)=>COLORS[idx%COLORS.length];
   const phases=data.phases||[];const actors=data.actors||[];
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
-<style>@page{margin:2cm;size:A4}body{font-family:'Segoe UI',sans-serif;font-size:10.5pt;color:#1E293B;line-height:1.6}
-h1{font-size:20pt;color:#1E40AF;margin-bottom:6px}.phase{border:1px solid #E2E8F0;border-radius:8px;padding:14px;margin-bottom:8px;page-break-inside:avoid}
-.footer{text-align:center;font-size:8pt;color:#94A3B8;margin-top:20px;letter-spacing:2px}
-.print-btn{position:fixed;top:16px;right:16px;background:#1E40AF;color:white;border:none;border-radius:6px;padding:10px 20px;cursor:pointer}
+<style>@page{margin:2cm;size:A4}body{font-family:'Segoe UI',sans-serif;font-size:10.5pt;color:#0F172A;line-height:1.6}
+h1{font-size:20pt;color:#4F46E5;font-weight:700;margin-bottom:6px}
+.phase{border:1px solid #E2E8F0;border-radius:8px;padding:14px;margin-bottom:8px;page-break-inside:avoid}
+.footer{text-align:center;font-size:8pt;color:#94A3B8;margin-top:20px;letter-spacing:1.5px}
+.print-btn{position:fixed;top:16px;right:16px;background:#4F46E5;color:white;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600}
 @media print{.print-btn{display:none}}</style></head><body>
 <button class="print-btn" onclick="window.print()">Save PDF</button>
-<h1>${data.title}</h1><p style="color:#64748B;font-style:italic;margin-bottom:16px">${data.summary}</p>
-${phases.map((p,idx)=>{const actor=actors.find(a=>a.id===p.actorId);return`
-<div class="phase"><b>${p.icon} Step ${idx+1}: ${p.title}</b> <span style="color:#64748B;font-size:9pt">— ${actor?.name}</span><br/>
-<i style="color:#64748B;font-size:9pt">${p.description}</i><br/>
-${p.steps.map((s,i)=>`${i+1}. ${s}`).join(" · ")}<br/>
-<span style="color:#1E40AF">→ ${p.output}</span>
+<h1>${data.title}</h1><p style="color:#64748B;margin-bottom:16px">${data.summary}</p>
+${phases.map((p,idx)=>{const c=gc(data.actors?.findIndex(a=>a.id===p.actorId)??0);const actor=actors.find(a=>a.id===p.actorId);return`
+<div class="phase" style="border-left:3px solid ${c}">
+<b style="color:${c}">${p.icon} Step ${idx+1}: ${p.title}</b> <span style="color:#64748B;font-size:9pt">— ${actor?.name}</span><br/>
+${p.steps.map((s,i)=>`${i+1}. ${s}`).join("  ·  ")}<br/>
+<span style="color:${c}">✓ ${p.output}</span>
 ${p.note?`<br/><span style="color:#92400E">⚠ ${p.note}</span>`:""}</div>
-${idx<phases.length-1?`<div style="text-align:center;color:#CBD5E1;margin:4px 0">↓</div>`:""}`}).join("")}
+${idx<phases.length-1?`<div style="text-align:center;color:#6366F1;margin:4px 0;font-size:14pt">↓</div>`:""}`}).join("")}
 <div style="margin-top:16px;border:1px solid #E2E8F0;border-radius:8px;padding:14px">
-<b style="font-size:9pt;color:#64748B;letter-spacing:2px;text-transform:uppercase">Key Insights</b><br/>
-${(data.keyInsights||[]).map(i=>`<div style="font-size:9.5pt;color:#374151;margin-top:6px;padding-left:12px;border-left:2px solid #CBD5E1">${i}</div>`).join("")}</div>
+<b style="font-size:9pt;color:#6366F1;letter-spacing:1.5px;text-transform:uppercase">Key Insights</b><br/>
+${(data.keyInsights||[]).map(i=>`<div style="font-size:9.5pt;color:#475569;margin-top:6px;padding-left:12px;border-left:2px solid #6366F133">${i}</div>`).join("")}</div>
 <div class="footer">FLOWSCRIBE AI</div></body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
 function doExportPPT(data) {
+  const gc=(idx)=>COLORS[idx%COLORS.length];
   const phases=data.phases||[];const actors=data.actors||[];
   const slides=[
-    `<div class="slide" style="background:linear-gradient(135deg,#0A0E1A 0%,#0F1629 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px">
-      <div style="font-size:10pt;letter-spacing:4px;color:#00E5FF;text-transform:uppercase;margin-bottom:16px;font-family:monospace">AI · Flowchart · Intelligence</div>
-      <h1 style="font-size:30pt;font-weight:700;color:#F8FAFC;letter-spacing:-1px;margin-bottom:14px;max-width:700px;line-height:1.15">${data.title}</h1>
-      <p style="font-size:13pt;color:#94A3B8;max-width:560px;line-height:1.6">${data.summary}</p>
+    `<div class="slide" style="background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px">
+      <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:6px 16px;font-size:11pt;color:white;margin-bottom:20px;letter-spacing:1px">AI · FLOWCHART · INTELLIGENCE</div>
+      <h1 style="font-size:30pt;font-weight:800;color:white;letter-spacing:-1px;margin-bottom:14px;line-height:1.15">${data.title}</h1>
+      <p style="font-size:13pt;color:rgba(255,255,255,0.8);max-width:560px;line-height:1.6">${data.summary}</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:28px">
-        ${actors.map(a=>`<div style="padding:6px 16px;border:1px solid #00E5FF44;border-radius:4px;font-size:11pt;color:#00E5FF;background:#00E5FF0A">${a.emoji} ${a.name}</div>`).join("")}
+        ${actors.map(a=>`<div style="background:rgba(255,255,255,0.2);border-radius:20px;padding:5px 16px;font-size:11pt;color:white">${a.emoji} ${a.name}</div>`).join("")}
       </div></div>`,
-    ...phases.map((p,idx)=>{const actor=actors.find(a=>a.id===p.actorId);return`
-    <div class="slide" style="background:#0A0E1A;padding:44px 52px;display:flex;flex-direction:column">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1E293B">
-        <span style="font-size:26px">${p.icon}</span>
-        <div><div style="font-size:16pt;font-weight:700;color:#F8FAFC">${p.title}</div>
-        <div style="font-size:10pt;color:#00E5FF;margin-top:2px;font-family:monospace">${actor?.emoji} ${actor?.name} · STEP ${String(idx+1).padStart(2,"0")}</div></div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1">
-        <div><div style="font-size:8pt;letter-spacing:2px;color:#00E5FF;text-transform:uppercase;margin-bottom:12px;font-family:monospace">Process Steps</div>
-        ${p.steps.map((s,i)=>`<div style="display:flex;gap:10px;margin-bottom:9px"><span style="color:#00E5FF;font-size:10pt;min-width:20px;font-family:monospace">${i+1}.</span><span style="font-size:10pt;color:#CBD5E1;line-height:1.5">${s}</span></div>`).join("")}</div>
-        <div><div style="font-size:8pt;letter-spacing:2px;color:#00E5FF;text-transform:uppercase;margin-bottom:12px;font-family:monospace">Output</div>
-        <div style="background:#00E5FF0A;border:1px solid #00E5FF33;border-radius:6px;padding:14px;font-size:10pt;color:#E2E8F0;line-height:1.5">→ ${p.output}</div>
-        ${p.note?`<div style="margin-top:10px;font-size:9pt;color:#FCD34D;padding:10px;background:#F59E0B0A;border:1px solid #F59E0B33;border-radius:6px">⚠ ${p.note}</div>`:""}</div>
+    ...phases.map((p,idx)=>{const c=gc(data.actors?.findIndex(a=>a.id===p.actorId)??0);const actor=actors.find(a=>a.id===p.actorId);return`
+    <div class="slide" style="padding:44px 52px;background:#FAFBFF">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #F1F5F9">
+        <div style="width:44px;height:44px;border-radius:10px;background:${c}15;border:1px solid ${c}33;display:flex;align-items:center;justify-content:center;font-size:22px">${p.icon}</div>
+        <div><div style="font-size:16pt;font-weight:700;color:#0F172A">${p.title}</div>
+        <div style="font-size:10pt;color:${c};font-weight:600;margin-top:2px">${actor?.emoji} ${actor?.name} · Step ${idx+1}</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+        <div><div style="font-size:9pt;font-weight:700;color:#94A3B8;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px">Process Steps</div>
+        ${p.steps.map((s,i)=>`<div style="display:flex;gap:10px;margin-bottom:9px"><div style="min-width:22px;height:22px;border-radius:6px;background:${c}15;color:${c};font-size:9pt;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div><div style="font-size:10pt;color:#475569;line-height:1.5">${s}</div></div>`).join("")}</div>
+        <div><div style="font-size:9pt;font-weight:700;color:#94A3B8;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px">Output</div>
+        <div style="background:${c}0D;border:1px solid ${c}22;border-radius:10px;padding:14px;font-size:10pt;color:#0F172A">✓ ${p.output}</div>
+        ${p.note?`<div style="margin-top:10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px;font-size:9pt;color:#92400E">⚠ ${p.note}</div>`:""}</div>
       </div></div>`}).join(""),
-    `<div class="slide" style="background:#0A0E1A;padding:44px 52px">
-    <div style="font-size:8pt;letter-spacing:3px;color:#00E5FF;text-transform:uppercase;margin-bottom:24px;font-family:monospace">Key Insights</div>
-    ${(data.keyInsights||[]).map((ins,i)=>`<div style="display:flex;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #1E293B">
-    <span style="font-size:10pt;color:#00E5FF44;min-width:24px;font-family:monospace">${i+1<10?"0"+(i+1):i+1}</span>
-    <span style="font-size:11pt;color:#CBD5E1;line-height:1.6">${ins}</span></div>`).join("")}</div>`
+    `<div class="slide" style="padding:44px 52px;background:#FAFBFF">
+    <div style="font-size:9pt;font-weight:700;color:#6366F1;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px">Key Insights</div>
+    ${(data.keyInsights||[]).map((ins,i)=>`<div style="display:flex;gap:14px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #F1F5F9">
+    <div style="min-width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:white;font-size:10pt;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div>
+    <span style="font-size:11pt;color:#374151;line-height:1.6">${ins}</span></div>`).join("")}</div>`
   ];
   const full=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${data.title}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#000;font-family:'Segoe UI',sans-serif;padding:20px}
-.slide{width:960px;min-height:540px;border-radius:8px;margin:0 auto 20px;overflow:hidden;box-shadow:0 0 40px rgba(0,229,255,0.1)}
-@media print{body{background:black;padding:0}.slide{margin:0;page-break-after:always;border-radius:0}}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#F1F5F9;font-family:'Segoe UI',sans-serif;padding:20px}
+.slide{width:960px;min-height:540px;border-radius:12px;margin:0 auto 20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.12)}
+@media print{body{background:white;padding:0}.slide{margin:0;page-break-after:always;border-radius:0}}</style>
 </head><body>${slides.join("")}</body></html>`;
   const b=new Blob([full],{type:"text/html"});const u=URL.createObjectURL(b);
   const a=document.createElement("a");a.href=u;a.download=`${data.title.replace(/\s+/g,"_")}_slides.html`;a.click();URL.revokeObjectURL(u);
 }
 
-// ── GLOBAL STYLES ─────────────────────────────────────────────────────────────
+// ── STYLES ────────────────────────────────────────────────────────────────────
 const GCSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:      #080C18;
-    --bg2:     #0D1225;
-    --bg3:     #111827;
-    --panel:   #0F1629;
-    --border:  #1E2D45;
-    --border2: #243352;
-    --cyan:    #00E5FF;
-    --cyan2:   #00B8D9;
-    --glow:    rgba(0,229,255,0.15);
-    --text:    #E2E8F0;
-    --text2:   #94A3B8;
-    --text3:   #475569;
-    --green:   #10B981;
-    --amber:   #F59E0B;
-    --red:     #EF4444;
+    --bg:       #F8F9FF;
+    --white:    #FFFFFF;
+    --border:   #E4E7F0;
+    --border2:  #D1D5E8;
+    --text:     #0F172A;
+    --text2:    #475569;
+    --text3:    #94A3B8;
+    --indigo:   #4F46E5;
+    --indigo2:  #6366F1;
+    --violet:   #7C3AED;
+    --glow:     rgba(99,102,241,0.12);
+    --surface:  #F1F3FF;
   }
 
   body {
     background: var(--bg);
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     color: var(--text);
     -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
   }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-
-  /* ── NAV ── */
+  /* NAV */
   .nav {
-    height: 60px;
+    height: 62px;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 28px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(8,12,24,0.95);
+    padding: 0 32px;
+    background: rgba(255,255,255,0.9);
     backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 100;
   }
-  .nav-logo {
+  .nav-brand {
     display: flex; align-items: center; gap: 10px;
-    font-family: 'Space Mono', monospace;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--cyan);
-    letter-spacing: 1px;
   }
-  .logo-icon {
-    width: 32px; height: 32px;
-    border: 1.5px solid var(--cyan);
-    border-radius: 6px;
+  .nav-logo-box {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    border-radius: 9px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-    box-shadow: 0 0 12px var(--glow);
-    position: relative;
-    overflow: hidden;
+    font-size: 17px;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.35);
   }
-  .logo-icon::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, var(--glow) 0%, transparent 60%);
+  .nav-name {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.3px;
   }
-  .nav-tag {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    color: var(--cyan);
-    border: 1px solid var(--cyan);
-    padding: 3px 10px;
-    border-radius: 3px;
-    letter-spacing: 1.5px;
-    background: var(--glow);
+  .nav-pill {
+    background: linear-gradient(135deg, #EEF2FF, #F5F0FF);
+    border: 1px solid #C7D2FE;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--indigo2);
+    letter-spacing: 0.5px;
   }
 
-  /* ── BUTTONS ── */
+  /* BUTTONS */
   .btn {
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
     font-weight: 600;
-    border-radius: 6px;
-    padding: 9px 22px;
+    border-radius: 10px;
+    padding: 10px 22px;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: all 0.2s;
-    letter-spacing: 0.3px;
+    transition: all 0.18s ease;
   }
   .btn-primary {
-    background: var(--cyan);
-    color: var(--bg);
-    border-color: var(--cyan);
-    font-weight: 700;
-    box-shadow: 0 0 20px rgba(0,229,255,0.25);
+    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    color: white;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.3), 0 1px 0 rgba(255,255,255,0.1) inset;
   }
   .btn-primary:hover {
-    background: #33EEFF;
-    box-shadow: 0 0 30px rgba(0,229,255,0.4);
     transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(99,102,241,0.4);
   }
-  .btn-primary:disabled { background: var(--text3); border-color: var(--text3); box-shadow: none; cursor: not-allowed; transform: none; color: var(--bg2); }
-  .btn-ghost {
-    background: transparent;
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled {
+    background: #CBD5E1; box-shadow: none; cursor: not-allowed; transform: none;
+  }
+  .btn-secondary {
+    background: white;
     color: var(--text2);
-    border-color: var(--border2);
+    border-color: var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
-  .btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); background: var(--glow); }
+  .btn-secondary:hover { border-color: var(--border2); color: var(--text); background: #FAFBFF; }
 
-  /* ── INPUT ── */
+  /* INPUT */
   .input {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 14px;
     color: var(--text);
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
     padding: 11px 14px;
     width: 100%;
     outline: none;
-    transition: all 0.2s;
+    transition: all 0.18s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
   .input:focus {
-    border-color: var(--cyan);
-    box-shadow: 0 0 0 3px var(--glow);
+    border-color: var(--indigo2);
+    box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
   }
-  .input::placeholder { color: var(--text3); }
+  .input::placeholder { color: #C4C9D4; }
 
-  /* ── PANEL ── */
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    position: relative;
-    overflow: hidden;
-  }
-  .panel::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-    opacity: 0.4;
+  /* CARD */
+  .card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 4px 16px rgba(99,102,241,0.04);
   }
 
-  /* ── PHASE CARD ── */
-  .phase-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+  /* STEP BADGE */
+  .step-badge {
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    letter-spacing: 0.3px;
+  }
+
+  /* PHASE ROW */
+  .phase-row {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
+    transition: all 0.18s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .phase-card:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,229,255,0.08); }
-  .phase-card.open {
-    border-color: var(--cyan);
-    border-radius: 8px 8px 0 0;
-    border-bottom-color: transparent;
-    box-shadow: 0 0 24px rgba(0,229,255,0.1);
+  .phase-row:hover {
+    border-color: var(--indigo2);
+    box-shadow: 0 4px 16px rgba(99,102,241,0.1);
+    transform: translateY(-1px);
+  }
+  .phase-row.open {
+    border-color: var(--indigo2);
+    border-radius: 12px 12px 0 0;
+    border-bottom: none;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.1);
+    transform: translateY(-1px);
   }
   .phase-body {
-    background: var(--bg2);
-    border: 1px solid var(--cyan);
+    background: #FAFBFF;
+    border: 1.5px solid var(--indigo2);
     border-top: none;
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 12px 12px;
     padding: 20px 22px 24px;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+    transform: translateY(-1px);
   }
 
-  /* ── LABEL ── */
+  /* LABEL */
   .label {
-    font-family: 'Space Mono', monospace;
     font-size: 10px;
-    color: var(--cyan);
-    letter-spacing: 2px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text3);
     text-transform: uppercase;
     margin-bottom: 10px;
   }
 
-  /* ── EXPORT BTN ── */
+  /* EXPORT BTN */
   .exp-btn {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 12px;
     font-weight: 600;
-    border-radius: 5px;
+    border-radius: 8px;
     padding: 7px 14px;
     cursor: pointer;
-    border: 1px solid var(--border2);
-    background: var(--panel);
+    border: 1.5px solid var(--border);
+    background: white;
     color: var(--text2);
-    transition: all 0.2s;
+    transition: all 0.18s;
     display: flex; align-items: center; gap: 5px;
-    letter-spacing: 0.3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .exp-btn:hover { border-color: var(--cyan); color: var(--cyan); background: var(--glow); box-shadow: 0 0 12px rgba(0,229,255,0.1); }
-
-  /* ── CONNECTOR ── */
-  .connector {
-    display: flex; flex-direction: column; align-items: center;
-    height: 28px; gap: 0;
-  }
-  .connector-line { width: 1px; flex: 1; background: linear-gradient(180deg, var(--cyan), transparent); opacity: 0.4; }
-  .connector-arrow { font-size: 12px; color: var(--cyan); opacity: 0.5; line-height: 1; }
-
-  /* ── GRID LINES BG ── */
-  .grid-bg {
-    background-image:
-      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
+  .exp-btn:hover {
+    border-color: var(--indigo2);
+    color: var(--indigo);
+    background: #EEF2FF;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(99,102,241,0.12);
   }
 
-  /* ── SCAN LINE ANIMATION ── */
-  .scanline {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.01) 2px, rgba(0,229,255,0.01) 4px);
-    pointer-events: none; z-index: 0;
-  }
+  /* CONNECTOR */
+  .connector { width: 2px; height: 28px; background: linear-gradient(180deg,#6366F1,#8B5CF6); margin: 0 auto; opacity: 0.25; border-radius: 2px; }
 
-  /* ── CORNER DECORATION ── */
-  .corner-tl, .corner-tr, .corner-bl, .corner-br {
-    position: absolute; width: 12px; height: 12px;
-    border-color: var(--cyan); border-style: solid; opacity: 0.5;
+  /* FEATURE CHIPS */
+  .feature-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 14px;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   }
-  .corner-tl { top: 0; left: 0; border-width: 1.5px 0 0 1.5px; border-radius: 3px 0 0 0; }
-  .corner-tr { top: 0; right: 0; border-width: 1.5px 1.5px 0 0; border-radius: 0 3px 0 0; }
-  .corner-bl { bottom: 0; left: 0; border-width: 0 0 1.5px 1.5px; border-radius: 0 0 0 3px; }
-  .corner-br { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; border-radius: 0 0 3px 0; }
+  .feature-chip-dot { width:7px; height:7px; border-radius:50%; background:linear-gradient(135deg,var(--indigo),var(--violet)); }
 
-  /* ── BADGE ── */
-  .badge {
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 1px;
-    padding: 3px 10px;
-    border-radius: 3px;
-    border: 1px solid;
-  }
-
-  /* ── FLOW DIAGRAM (hero visual) ── */
-  .flow-vis {
-    display: flex; align-items: center; gap: 8px;
-    padding: 14px 18px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .flow-node {
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .flow-arrow { color: var(--cyan); opacity: 0.6; font-size: 14px; flex-shrink: 0; }
-
-  /* ── ANIMATIONS ── */
+  /* ANIMATIONS */
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  @keyframes glowPulse { 0%,100%{box-shadow:0 0 12px var(--glow)} 50%{box-shadow:0 0 28px rgba(0,229,255,0.3)} }
-  @keyframes scanMove { from{transform:translateY(-100%)} to{transform:translateY(100vh)} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
   @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes typeIn { from{width:0} to{width:100%} }
-  @keyframes flowPulse { 0%,100%{opacity:0.5;transform:scaleX(1)} 50%{opacity:1;transform:scaleX(1.02)} }
+  @keyframes flowStep { 0%{opacity:0.3;transform:scale(0.97)} 100%{opacity:1;transform:scale(1)} }
 
-  .fade-up { animation: fadeUp 0.45s ease both; }
-  .fade-up-1 { animation: fadeUp 0.45s 0.06s ease both; }
-  .fade-up-2 { animation: fadeUp 0.45s 0.12s ease both; }
-  .fade-up-3 { animation: fadeUp 0.45s 0.18s ease both; }
-  .fade-up-4 { animation: fadeUp 0.45s 0.24s ease both; }
-  .fade-up-5 { animation: fadeUp 0.45s 0.30s ease both; }
+  .fade-up   { animation: fadeUp 0.4s ease both; }
+  .fade-up-1 { animation: fadeUp 0.4s 0.06s ease both; }
+  .fade-up-2 { animation: fadeUp 0.4s 0.12s ease both; }
+  .fade-up-3 { animation: fadeUp 0.4s 0.18s ease both; }
+  .fade-up-4 { animation: fadeUp 0.4s 0.24s ease both; }
 `;
 
-// ── ANIMATED FLOW DIAGRAM ─────────────────────────────────────────────────────
-function FlowDiagramVis() {
-  const [step, setStep] = useState(0);
+// ── FLOW PREVIEW (animated) ───────────────────────────────────────────────────
+function FlowPreview() {
+  const [active, setActive] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setStep(s => (s + 1) % 4), 1200);
+    const t = setInterval(() => setActive(a => (a + 1) % 4), 1100);
     return () => clearInterval(t);
   }, []);
-  const nodes = [
-    { label: "TRANSCRIPT", color: "#00E5FF" },
-    { label: "AI ANALYSIS", color: "#7C3AED" },
-    { label: "FLOWCHART", color: "#10B981" },
-    { label: "EXPORT", color: "#F59E0B" },
+  const steps = [
+    { icon:"📄", label:"Upload doc", color:"#6366F1" },
+    { icon:"🤖", label:"AI reads it", color:"#8B5CF6" },
+    { icon:"🔀", label:"Maps process", color:"#06B6D4" },
+    { icon:"📊", label:"Export ready", color:"#10B981" },
   ];
   return (
-    <div className="flow-vis">
-      {nodes.map((n, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div className="flow-node" style={{
-            border: `1px solid ${n.color}${step >= i ? "99" : "33"}`,
-            color: step >= i ? n.color : "#475569",
-            background: step >= i ? `${n.color}11` : "transparent",
-            transition: "all 0.4s",
-            boxShadow: step >= i ? `0 0 12px ${n.color}22` : "none",
-          }}>{n.label}</div>
-          {i < nodes.length - 1 && (
-            <div className="flow-arrow" style={{ opacity: step > i ? 0.9 : 0.2, transition: "opacity 0.4s" }}>→</div>
+    <div style={{ display:"flex", alignItems:"center", gap:"6px", padding:"14px 18px", background:"white", border:"1.5px solid var(--border)", borderRadius:"12px", boxShadow:"0 2px 8px rgba(99,102,241,0.06)", flexWrap:"wrap" }}>
+      {steps.map((s, i) => (
+        <div key={i} style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+          <div style={{
+            display:"flex", alignItems:"center", gap:"7px",
+            padding:"6px 12px", borderRadius:"8px",
+            border:`1.5px solid ${active >= i ? s.color+"44" : "var(--border)"}`,
+            background: active >= i ? `${s.color}0D` : "transparent",
+            transition:"all 0.35s ease",
+            fontSize:"13px", fontWeight:600,
+            color: active >= i ? s.color : "var(--text3)",
+          }}>
+            <span>{s.icon}</span>
+            <span>{s.label}</span>
+          </div>
+          {i < steps.length - 1 && (
+            <div style={{ color: active > i ? "#6366F1" : "#D1D5DB", fontSize:"16px", fontWeight:700, transition:"color 0.35s", margin:"0 2px" }}>→</div>
           )}
         </div>
       ))}
@@ -470,8 +426,7 @@ function ApiKeyScreen({ onSave }) {
     setTesting(true); setError("");
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
+        method:"POST", headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
         body: JSON.stringify({ model:"claude-haiku-4-5-20251001", max_tokens:10, messages:[{role:"user",content:"hi"}] })
       });
       if (!r.ok) { const e=await r.json(); throw new Error(e?.error?.message||"Invalid key"); }
@@ -480,70 +435,89 @@ function ApiKeyScreen({ onSave }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"var(--bg)" }} className="grid-bg">
+    <div style={{ minHeight:"100vh", background:"var(--bg)" }}>
       <style>{GCSS}</style>
-      <div className="scanline"/>
 
       <nav className="nav">
-        <div className="nav-logo">
-          <div className="logo-icon">⬡</div>
-          FLOWSCRIBE
+        <div className="nav-brand">
+          <div className="nav-logo-box">⬡</div>
+          <span className="nav-name">FlowScribe</span>
         </div>
-        <div className="nav-tag">AI POWERED</div>
+        <div className="nav-pill">AI POWERED</div>
       </nav>
 
-      <div style={{ maxWidth:"480px", margin:"0 auto", padding:"60px 24px" }}>
+      <div style={{ maxWidth:"520px", margin:"0 auto", padding:"64px 24px 80px" }}>
 
-        {/* Hero text */}
-        <div className="fade-up" style={{ marginBottom:"40px" }}>
-          <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"11px", color:"var(--cyan)", letterSpacing:"3px", marginBottom:"16px", opacity:0.8 }}>
-            TRANSCRIPT → FLOWCHART ENGINE
+        {/* Hero */}
+        <div className="fade-up" style={{ marginBottom:"44px" }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:"#EEF2FF", border:"1px solid #C7D2FE", borderRadius:"20px", padding:"5px 14px", fontSize:"12px", fontWeight:700, color:"var(--indigo2)", marginBottom:"20px" }}>
+            ✦ Transcript to Flowchart — AI Powered
           </div>
-          <h1 style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(28px,4vw,40px)", fontWeight:800, lineHeight:1.1, letterSpacing:"-0.5px", marginBottom:"14px", color:"var(--text)" }}>
-            Transform documents<br/>
-            <span style={{ color:"var(--cyan)", textShadow:"0 0 30px rgba(0,229,255,0.4)" }}>into visual flowcharts</span>
+          <h1 style={{ fontSize:"clamp(28px,4vw,42px)", fontWeight:800, lineHeight:1.1, letterSpacing:"-1px", marginBottom:"14px", color:"var(--text)" }}>
+            Turn any meeting into a{" "}
+            <span style={{ background:"linear-gradient(135deg,#4F46E5,#7C3AED)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+              visual flowchart
+            </span>
           </h1>
-          <p style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.7, marginBottom:"20px" }}>
-            Paste any meeting transcript, SOP, or document. Our AI extracts the process, maps the actors, and builds an interactive flowchart — ready to export in seconds.
+          <p style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.75, marginBottom:"22px" }}>
+            Upload a transcript, SOP, or meeting doc. Our AI instantly extracts every actor, step, and decision — building you a clean, interactive flowchart ready to export.
           </p>
-          <FlowDiagramVis/>
+          <FlowPreview />
         </div>
 
-        {/* Key card */}
-        <div className="panel fade-up-1" style={{ padding:"24px" }}>
-          <div className="corner-tl"/><div className="corner-tr"/><div className="corner-bl"/><div className="corner-br"/>
-          <div className="label" style={{ marginBottom:"14px" }}>// API KEY REQUIRED</div>
-          <div style={{ display:"flex", gap:"8px", marginBottom:"12px" }}>
+        {/* Card */}
+        <div className="card fade-up-1" style={{ padding:"28px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"20px" }}>
+            <div style={{ width:"36px", height:"36px", background:"linear-gradient(135deg,#EEF2FF,#F5F0FF)", border:"1px solid #C7D2FE", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"17px" }}>🔑</div>
+            <div>
+              <div style={{ fontWeight:700, fontSize:"15px", color:"var(--text)" }}>Connect your AI Engine</div>
+              <div style={{ fontSize:"12px", color:"var(--text3)", marginTop:"1px" }}>Anthropic API key required</div>
+            </div>
+          </div>
+
+          <div className="label">Your API Key</div>
+          <div style={{ display:"flex", gap:"8px", marginBottom:"14px" }}>
             <input className="input" type={show?"text":"password"} value={key}
               onChange={e=>{setKey(e.target.value);setError("");}}
               placeholder="sk-ant-api03-…"
               onKeyDown={e=>e.key==="Enter"&&handleSave()}
-              style={{ flex:1, fontFamily:"'Space Mono',monospace", fontSize:"13px" }}
+              style={{ flex:1 }}
             />
-            <button className="btn btn-ghost" onClick={()=>setShow(!show)} style={{padding:"9px 12px",flexShrink:0,fontSize:"12px"}}>{show?"HIDE":"SHOW"}</button>
+            <button className="btn btn-secondary" onClick={()=>setShow(!show)} style={{padding:"10px 14px",flexShrink:0,fontSize:"13px"}}>{show?"Hide":"Show"}</button>
           </div>
-          {error && <div style={{fontSize:"13px",color:"var(--red)",marginBottom:"12px",padding:"8px 12px",background:"rgba(239,68,68,0.1)",borderRadius:"6px",border:"1px solid rgba(239,68,68,0.3)",fontFamily:"'Space Mono',monospace",fontSize:"12px"}}>⚠ {error}</div>}
-          <button className="btn btn-primary" onClick={handleSave} disabled={!key||testing} style={{width:"100%",fontSize:"14px",letterSpacing:"1px"}}>
-            {testing ? "VERIFYING..." : "INITIALIZE →"}
+
+          {error && (
+            <div style={{ fontSize:"13px", color:"#DC2626", marginBottom:"14px", padding:"10px 14px", background:"#FEF2F2", borderRadius:"8px", border:"1px solid #FECACA", display:"flex", gap:"8px", alignItems:"flex-start" }}>
+              <span>⚠️</span> {error}
+            </div>
+          )}
+
+          <button className="btn btn-primary" onClick={handleSave} disabled={!key||testing} style={{ width:"100%", fontSize:"15px", padding:"12px" }}>
+            {testing ? "Verifying key…" : "Get Started →"}
           </button>
 
-          <div style={{marginTop:"20px",paddingTop:"20px",borderTop:"1px solid var(--border)"}}>
-            <div className="label" style={{marginBottom:"12px"}}>// GET YOUR KEY</div>
-            {[["01","Visit console.anthropic.com"],["02","Create account or sign in"],["03","API Keys → Create New Key"],["04","Paste above and initialize"]].map(([n,t])=>(
-              <div key={n} style={{display:"flex",gap:"14px",marginBottom:"9px",alignItems:"flex-start"}}>
-                <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--cyan)",opacity:0.5,minWidth:"22px",paddingTop:"2px"}}>{n}</span>
-                <span style={{fontSize:"13px",color:"var(--text2)"}}>{t}</span>
-              </div>
-            ))}
-            <div style={{marginTop:"14px",fontSize:"12px",color:"var(--green)",fontFamily:"'Space Mono',monospace",display:"flex",alignItems:"center",gap:"8px"}}>
-              <span style={{animation:"pulse 2s infinite",display:"inline-block",width:"6px",height:"6px",borderRadius:"50%",background:"var(--green)"}}/>
-              ~$0.001 per analysis
+          <div style={{ marginTop:"22px", paddingTop:"20px", borderTop:"1px solid var(--border)" }}>
+            <div className="label" style={{ marginBottom:"14px" }}>How to get your key</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+              {[["1","Visit console.anthropic.com","🌐"],["2","Sign up or log in","👤"],["3","API Keys → Create Key","🔐"],["4","Paste above & go","✅"]].map(([n,t,ic])=>(
+                <div key={n} style={{ display:"flex", gap:"10px", padding:"10px 12px", background:"var(--surface)", borderRadius:"8px", border:"1px solid var(--border)", alignItems:"flex-start" }}>
+                  <span style={{ fontSize:"15px" }}>{ic}</span>
+                  <div>
+                    <div style={{ fontSize:"10px", fontWeight:700, color:"var(--indigo2)", marginBottom:"2px" }}>STEP {n}</div>
+                    <div style={{ fontSize:"12px", color:"var(--text2)", lineHeight:1.4 }}>{t}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop:"14px", display:"flex", alignItems:"center", gap:"8px", padding:"10px 14px", background:"#ECFDF5", border:"1px solid #A7F3D0", borderRadius:"8px" }}>
+              <span style={{ fontSize:"15px" }}>💚</span>
+              <span style={{ fontSize:"13px", color:"#065F46", fontWeight:500 }}>Extremely affordable — approximately $0.001 per analysis</span>
             </div>
           </div>
         </div>
 
-        <p style={{textAlign:"center",fontSize:"11px",color:"var(--text3)",marginTop:"16px",fontFamily:"'Space Mono',monospace",letterSpacing:"0.5px"}}>
-          KEY STORED IN SESSION ONLY · NO DATA RETAINED
+        <p style={{ textAlign:"center", fontSize:"11px", color:"var(--text3)", marginTop:"18px" }}>
+          🔒 Your API key is stored in your browser session only. Never shared.
         </p>
       </div>
     </div>
@@ -555,16 +529,16 @@ function ExportBar({ data }) {
   const [busy, setBusy] = useState(null);
   const go = (type, fn) => { setBusy(type); setTimeout(()=>{fn(data);setBusy(null);},200); };
   const exports = [
-    {type:"html",label:"HTML",fn:doExportHTML},
-    {type:"word",label:"WORD",fn:doExportWord},
-    {type:"pdf", label:"PDF", fn:doExportPDF},
-    {type:"ppt", label:"SLIDES",fn:doExportPPT},
+    {type:"html", icon:"🌐", label:"HTML",   fn:doExportHTML},
+    {type:"word", icon:"📝", label:"Word",   fn:doExportWord},
+    {type:"pdf",  icon:"📄", label:"PDF",    fn:doExportPDF},
+    {type:"ppt",  icon:"📊", label:"Slides", fn:doExportPPT},
   ];
   return (
-    <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-      {exports.map(({type,label,fn})=>(
+    <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+      {exports.map(({type,icon,label,fn})=>(
         <button key={type} className="exp-btn" onClick={()=>go(type,fn)} disabled={!!busy}>
-          {busy===type?"...":"↗"} {label}
+          {busy===type?"⏳":icon} {label}
         </button>
       ))}
     </div>
@@ -581,105 +555,110 @@ function ResultView({ data }) {
     <div style={{ maxWidth:"800px", margin:"0 auto", padding:"0 24px 80px" }}>
 
       {/* Header */}
-      <div style={{ paddingTop:"48px", paddingBottom:"32px", borderBottom:"1px solid var(--border)", marginBottom:"32px" }}>
-        <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"10px", color:"var(--cyan)", letterSpacing:"3px", marginBottom:"14px", opacity:0.8 }}>
-          // FLOWCHART GENERATED
+      <div style={{ paddingTop:"52px", marginBottom:"36px" }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:"#ECFDF5", border:"1px solid #A7F3D0", borderRadius:"20px", padding:"5px 14px", fontSize:"12px", fontWeight:700, color:"#065F46", marginBottom:"16px" }}>
+          ✅ Flowchart Generated
         </div>
-        <h1 className="fade-up" style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(22px,3vw,32px)", fontWeight:800, letterSpacing:"-0.5px", marginBottom:"10px", color:"var(--text)" }}>
+        <h1 className="fade-up" style={{ fontSize:"clamp(22px,3vw,32px)", fontWeight:800, letterSpacing:"-0.5px", marginBottom:"10px", color:"var(--text)" }}>
           {data.title}
         </h1>
         <p className="fade-up-1" style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.65, marginBottom:"20px", maxWidth:"580px" }}>
           {data.summary}
         </p>
-
-        {/* Actors */}
         <div className="fade-up-2" style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"24px" }}>
-          {(data.actors||[]).map((a, i) => (
-            <div key={a.id} className="badge" style={{ color:COLORS[i%COLORS.length], borderColor:`${COLORS[i%COLORS.length]}44`, background:`${COLORS[i%COLORS.length]}0D` }}>
+          {(data.actors||[]).map((a,i) => (
+            <div key={a.id} className="step-badge" style={{ background:`${COLORS[i%COLORS.length]}0D`, border:`1.5px solid ${COLORS[i%COLORS.length]}33`, color:COLORS[i%COLORS.length] }}>
               {a.emoji} {a.name}
             </div>
           ))}
         </div>
 
+        {/* Stats */}
+        <div className="fade-up-2" style={{ display:"flex", gap:"16px", marginBottom:"24px", padding:"16px 20px", background:"white", border:"1.5px solid var(--border)", borderRadius:"12px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)" }}>
+          {[
+            {n:data.phases?.length||0, label:"Phases", icon:"🔀"},
+            {n:data.actors?.length||0, label:"Actors", icon:"👥"},
+            {n:data.keyInsights?.length||0, label:"Insights", icon:"💡"},
+            {n:data.phases?.filter(p=>p.isDecision).length||0, label:"Decisions", icon:"◆"},
+          ].map(({n,label,icon})=>(
+            <div key={label} style={{ textAlign:"center", flex:1 }}>
+              <div style={{ fontSize:"11px", marginBottom:"4px" }}>{icon}</div>
+              <div style={{ fontSize:"20px", fontWeight:800, color:"var(--indigo)", lineHeight:1 }}>{n}</div>
+              <div style={{ fontSize:"11px", color:"var(--text3)", fontWeight:500, marginTop:"3px" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
         <div className="fade-up-3">
-          <div className="label" style={{marginBottom:"10px"}}>// EXPORT</div>
+          <div className="label" style={{marginBottom:"10px"}}>Export Document</div>
           <ExportBar data={data}/>
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div className="fade-up-3" style={{ display:"flex", gap:"24px", marginBottom:"32px", paddingBottom:"24px", borderBottom:"1px solid var(--border)" }}>
-        {[
-          {label:"PHASES", value:data.phases?.length||0},
-          {label:"ACTORS", value:data.actors?.length||0},
-          {label:"INSIGHTS", value:data.keyInsights?.length||0},
-          {label:"DECISIONS", value:data.phases?.filter(p=>p.isDecision).length||0},
-        ].map(({label,value})=>(
-          <div key={label}>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:"22px",fontWeight:700,color:"var(--cyan)"}}>{String(value).padStart(2,"0")}</div>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:"9px",color:"var(--text3)",letterSpacing:"1.5px",marginTop:"2px"}}>{label}</div>
-          </div>
-        ))}
+      {/* Divider */}
+      <div style={{ display:"flex", alignItems:"center", gap:"14px", marginBottom:"28px" }}>
+        <div style={{ flex:1, height:"1px", background:"var(--border)" }}/>
+        <span style={{ fontSize:"11px", fontWeight:700, color:"var(--text3)", letterSpacing:"1px" }}>PROCESS FLOW</span>
+        <div style={{ flex:1, height:"1px", background:"var(--border)" }}/>
       </div>
 
       {/* Phases */}
-      <div className="label" style={{marginBottom:"16px"}}>// PROCESS FLOW</div>
       <div>
         {(data.phases||[]).map((phase, index) => {
-          const actor = ga(phase.actorId);
           const color = gc(phase.actorId);
+          const actor = ga(phase.actorId);
           const isOpen = active === phase.id;
           return (
-            <div key={phase.id} className={`fade-up`} style={{ animationDelay:`${index*0.05}s` }}>
-              <div className={`phase-card${isOpen?" open":""}`} onClick={()=>setActive(isOpen?null:phase.id)}
-                style={{ borderColor: isOpen ? color : "var(--border)" }}>
-                {isOpen && <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:`linear-gradient(90deg,transparent,${color},transparent)`}}/>}
+            <div key={phase.id} className="fade-up" style={{ animationDelay:`${index*0.05}s` }}>
+              <div className={`phase-row${isOpen?" open":""}`} onClick={()=>setActive(isOpen?null:phase.id)}
+                style={{ borderColor: isOpen ? color : undefined }}>
                 <div style={{ padding:"15px 18px", display:"flex", alignItems:"center", gap:"14px" }}>
-                  <div style={{ width:"36px",height:"36px",borderRadius:"6px",border:`1px solid ${color}44`,background:`${color}0D`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0 }}>{phase.icon}</div>
+                  <div style={{ width:"44px", height:"44px", borderRadius:"10px", background:`${color}12`, border:`1.5px solid ${color}30`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px", flexShrink:0 }}>
+                    {phase.icon}
+                  </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:"14px", fontWeight:600, color:"var(--text)", marginBottom:"3px" }}>{phase.title}</div>
-                    <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"10px", color, letterSpacing:"0.5px" }}>{actor?.emoji} {actor?.name}</div>
+                    <div style={{ fontSize:"14px", fontWeight:700, color:"var(--text)", marginBottom:"3px" }}>{phase.title}</div>
+                    <div style={{ fontSize:"12px", color, fontWeight:600 }}>{actor?.emoji} {actor?.name}</div>
                   </div>
-                  <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"11px", color:"var(--text3)", flexShrink:0 }}>
-                    {String(index+1).padStart(2,"0")}
+                  <div className="step-badge" style={{ background:`${color}0D`, border:`1px solid ${color}30`, color, flexShrink:0 }}>
+                    Step {index+1}
                   </div>
-                  <div style={{ width:"20px",height:"20px",border:`1px solid ${isOpen?color:"var(--border2)"}`,borderRadius:"4px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px",color:isOpen?color:"var(--text3)",transition:"all 0.2s",background:isOpen?`${color}11`:"transparent" }}>
-                    {isOpen?"−":"+"}
+                  <div style={{ width:"28px", height:"28px", borderRadius:"7px", background: isOpen?`${color}12`:"var(--surface)", border:`1.5px solid ${isOpen?color:"var(--border)"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"16px", color: isOpen?color:"var(--text3)", transition:"all 0.2s", flexShrink:0, fontWeight:700 }}>
+                    {isOpen ? "−" : "+"}
                   </div>
                 </div>
               </div>
 
               {isOpen && (
-                <div className="phase-body" style={{borderColor:color}}>
-                  <p style={{ fontSize:"13px",color:"var(--text2)",lineHeight:1.65,marginBottom:"20px",padding:"10px 14px",background:`${color}08`,borderLeft:`2px solid ${color}55`,borderRadius:"0 6px 6px 0" }}>
+                <div className="phase-body">
+                  <p style={{ fontSize:"13px", color:"var(--text2)", lineHeight:1.65, marginBottom:"20px", padding:"10px 14px", background:`${color}08`, borderLeft:`3px solid ${color}55`, borderRadius:"0 8px 8px 0" }}>
                     {phase.description}
                   </p>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"24px" }}>
                     <div>
-                      <div className="label">// STEPS</div>
+                      <div className="label">Process Steps</div>
                       {phase.steps.map((step,i)=>(
-                        <div key={i} style={{ display:"flex",gap:"12px",marginBottom:"10px",alignItems:"flex-start" }}>
-                          <span style={{ fontFamily:"'Space Mono',monospace",fontSize:"10px",color,opacity:0.7,minWidth:"22px",paddingTop:"3px",flexShrink:0 }}>{String(i+1).padStart(2,"0")}</span>
-                          <span style={{ fontSize:"13px",color:"var(--text2)",lineHeight:1.55 }}>{step}</span>
+                        <div key={i} style={{ display:"flex", gap:"10px", marginBottom:"10px", alignItems:"flex-start" }}>
+                          <span style={{ minWidth:"22px", height:"22px", borderRadius:"6px", background:`${color}14`, border:`1px solid ${color}28`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"10px", color, fontWeight:700, flexShrink:0, marginTop:"1px" }}>{i+1}</span>
+                          <span style={{ fontSize:"13px", color:"var(--text2)", lineHeight:1.55 }}>{step}</span>
                         </div>
                       ))}
                       {phase.isDecision && (
-                        <div style={{ marginTop:"14px",padding:"12px 14px",background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:"6px",fontSize:"12px" }}>
-                          <div style={{ fontFamily:"'Space Mono',monospace",fontWeight:700,color:"#F59E0B",marginBottom:"7px",fontSize:"11px" }}>◆ DECISION POINT</div>
-                          <div style={{ color:"var(--text2)",marginBottom:"4px" }}>{phase.decisionQuestion}</div>
-                          <div style={{ color:"var(--green)",marginBottom:"3px",fontSize:"12px" }}>→ YES: {phase.decisionYes}</div>
-                          <div style={{ color:"var(--red)",fontSize:"12px" }}>→ NO: {phase.decisionNo}</div>
+                        <div style={{ marginTop:"14px", padding:"12px 14px", background:"#FFFBEB", border:"1.5px solid #FDE68A", borderRadius:"10px", fontSize:"12px" }}>
+                          <div style={{ fontWeight:700, color:"#92400E", marginBottom:"6px" }}>◆ {phase.decisionQuestion}</div>
+                          <div style={{ color:"#065F46", marginBottom:"3px" }}>✅ Yes → {phase.decisionYes}</div>
+                          <div style={{ color:"#991B1B" }}>❌ No → {phase.decisionNo}</div>
                         </div>
                       )}
                     </div>
                     <div>
-                      <div className="label">// OUTPUT</div>
-                      <div style={{ padding:"12px 14px",background:`${color}0D`,border:`1px solid ${color}33`,borderRadius:"6px",fontSize:"13px",color:"var(--text)",lineHeight:1.55,marginBottom:"12px" }}>
-                        → {phase.output}
+                      <div className="label">Output</div>
+                      <div style={{ padding:"12px 14px", background:`${color}0A`, border:`1.5px solid ${color}25`, borderRadius:"10px", fontSize:"13px", color:"var(--text)", lineHeight:1.55, marginBottom:"12px" }}>
+                        ✓ {phase.output}
                       </div>
                       {phase.note && (
-                        <div style={{ padding:"10px 12px",background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:"6px",fontSize:"12px",color:"#FCD34D",lineHeight:1.5 }}>
-                          ⚠ {phase.note}
+                        <div style={{ padding:"10px 12px", background:"#FFFBEB", border:"1.5px solid #FDE68A", borderRadius:"10px", fontSize:"12px", color:"#92400E", lineHeight:1.5 }}>
+                          ⚠️ {phase.note}
                         </div>
                       )}
                     </div>
@@ -687,12 +666,7 @@ function ResultView({ data }) {
                 </div>
               )}
 
-              {index < data.phases.length-1 && (
-                <div className="connector">
-                  <div className="connector-line" style={{background:`linear-gradient(180deg,${color}66,${gc(data.phases[index+1].actorId)}66)`}}/>
-                  <div className="connector-arrow">▼</div>
-                </div>
-              )}
+              {index < data.phases.length-1 && <div className="connector" style={{ margin:"6px auto" }}/>}
             </div>
           );
         })}
@@ -700,18 +674,21 @@ function ResultView({ data }) {
 
       {/* Insights */}
       {data.keyInsights?.length > 0 && (
-        <div className="panel" style={{ padding:"22px 24px", marginTop:"32px" }}>
-          <div className="label">// KEY INSIGHTS</div>
+        <div className="card" style={{ padding:"22px 24px", marginTop:"32px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"16px" }}>
+            <span style={{ fontSize:"18px" }}>💡</span>
+            <div className="label" style={{ margin:0 }}>Key Insights</div>
+          </div>
           {data.keyInsights.map((ins,i)=>(
-            <div key={i} style={{ fontSize:"13px",color:"var(--text2)",marginBottom:"12px",paddingLeft:"14px",borderLeft:`2px solid ${COLORS[i%COLORS.length]}44`,lineHeight:1.65,padding:"8px 14px",background:`${COLORS[i%COLORS.length]}06`,borderRadius:"0 6px 6px 0" }}>
+            <div key={i} style={{ fontSize:"13px", color:"var(--text2)", marginBottom:"10px", paddingLeft:"14px", borderLeft:`3px solid ${COLORS[i%COLORS.length]}55`, lineHeight:1.65, padding:"8px 14px", background:`${COLORS[i%COLORS.length]}05`, borderRadius:"0 8px 8px 0" }}>
               {ins}
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ marginTop:"36px",paddingTop:"24px",borderTop:"1px solid var(--border)" }}>
-        <div className="label" style={{marginBottom:"12px"}}>// EXPORT DOCUMENT</div>
+      <div style={{ marginTop:"36px", paddingTop:"24px", borderTop:"1px solid var(--border)" }}>
+        <div className="label" style={{ marginBottom:"12px" }}>Export Your Flowchart</div>
         <ExportBar data={data}/>
       </div>
     </div>
@@ -732,11 +709,11 @@ export default function App() {
   const fileRef = useRef(null);
 
   const run = useCallback(async (text, name) => {
-    setFileName(name); setStage("processing"); setProgress("Reading document...");
+    setFileName(name); setStage("processing"); setProgress("Reading document…");
     try {
-      setProgress("AI analyzing structure...");
+      setProgress("AI is analyzing your document…");
       const result = await analyzeTranscript(text, apiKey);
-      setProgress("Rendering flowchart...");
+      setProgress("Building flowchart…");
       await new Promise(r => setTimeout(r, 300));
       setFlowData(result); setStage("result");
     } catch(err) { setErrorMsg(err.message||"Something went wrong."); setStage("error"); }
@@ -760,128 +737,132 @@ export default function App() {
   if (!apiKey) return <ApiKeyScreen onSave={setApiKey}/>;
 
   return (
-    <div style={{ minHeight:"100vh", background:"var(--bg)" }} className="grid-bg">
+    <div style={{ minHeight:"100vh", background:"var(--bg)" }}>
       <style>{GCSS}</style>
-      <div className="scanline"/>
 
       <nav className="nav">
-        <div className="nav-logo">
-          <div className="logo-icon">⬡</div>
-          FLOWSCRIBE
+        <div className="nav-brand">
+          <div className="nav-logo-box">⬡</div>
+          <span className="nav-name">FlowScribe</span>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-          {stage==="result" && <button className="btn btn-ghost" onClick={reset} style={{padding:"7px 14px",fontSize:"12px",letterSpacing:"0.5px"}}>← NEW</button>}
-          <button onClick={()=>setApiKey("")} className="btn btn-ghost" style={{padding:"7px 14px",fontSize:"12px",letterSpacing:"0.5px"}}>API KEY</button>
-          <div className="nav-tag">ONLINE</div>
+          {stage==="result" && <button className="btn btn-secondary" onClick={reset} style={{padding:"8px 16px",fontSize:"13px"}}>← New Analysis</button>}
+          <button onClick={()=>setApiKey("")} className="btn btn-secondary" style={{padding:"8px 16px",fontSize:"13px"}}>API Key</button>
+          <div className="nav-pill">AI READY</div>
         </div>
       </nav>
 
       {/* Upload */}
       {stage==="upload" && (
-        <div style={{ maxWidth:"640px", margin:"0 auto", padding:"56px 24px" }}>
+        <div style={{ maxWidth:"640px", margin:"0 auto", padding:"64px 24px 80px" }}>
 
           {/* Hero */}
           <div className="fade-up" style={{ marginBottom:"44px" }}>
-            <div style={{ fontFamily:"'Space Mono',monospace", fontSize:"11px", color:"var(--cyan)", letterSpacing:"3px", marginBottom:"16px", opacity:0.8 }}>
-              TRANSCRIPT → FLOWCHART ENGINE
+            <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:"#EEF2FF", border:"1px solid #C7D2FE", borderRadius:"20px", padding:"5px 14px", fontSize:"12px", fontWeight:700, color:"var(--indigo2)", marginBottom:"20px" }}>
+              ✦ AI-Powered Flowchart Generator
             </div>
-            <h1 style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(28px,4vw,44px)", fontWeight:800, lineHeight:1.08, letterSpacing:"-1px", marginBottom:"14px", color:"var(--text)" }}>
-              Turn meetings &amp; docs<br/>
-              <span style={{ color:"var(--cyan)", textShadow:"0 0 40px rgba(0,229,255,0.35)" }}>into smart flowcharts</span>
+            <h1 style={{ fontSize:"clamp(28px,4vw,46px)", fontWeight:800, lineHeight:1.08, letterSpacing:"-1.2px", marginBottom:"16px", color:"var(--text)" }}>
+              Transcripts in.{" "}
+              <span style={{ background:"linear-gradient(135deg,#4F46E5,#7C3AED)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+                Flowcharts out.
+              </span>
             </h1>
-            <p style={{ fontSize:"15px", color:"var(--text2)", lineHeight:1.7, maxWidth:"500px", marginBottom:"20px" }}>
-              Upload any transcript, SOP, or process document. The AI reads it, maps every actor, step, and decision — then builds an interactive flowchart you can export instantly.
+            <p style={{ fontSize:"16px", color:"var(--text2)", lineHeight:1.75, maxWidth:"520px", marginBottom:"24px" }}>
+              Upload any meeting transcript, SOP, or process document. Our AI extracts every actor, step, and decision — building a clean interactive flowchart you can export in one click.
             </p>
-            <FlowDiagramVis/>
+            <FlowPreview/>
+          </div>
+
+          {/* Feature chips */}
+          <div className="fade-up-1" style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"28px" }}>
+            {[["🤖","AI Extraction"],["👥","Actor Mapping"],["🔀","Decision Trees"],["📊","PowerPoint"],["📄","PDF Export"]].map(([ic,l])=>(
+              <div key={l} className="feature-chip"><div className="feature-chip-dot"/>{ic} {l}</div>
+            ))}
           </div>
 
           {/* Drop zone */}
-          <div className="fade-up-1" style={{ position:"relative", marginBottom:"14px" }}>
+          <div className="fade-up-2" style={{ marginBottom:"14px" }}>
             <div
               onDragOver={e=>{e.preventDefault();setDragOver(true);}}
               onDragLeave={()=>setDragOver(false)}
               onDrop={handleDrop}
               onClick={()=>fileRef.current?.click()}
               style={{
-                border:`1px dashed ${dragOver?"var(--cyan)":"var(--border2)"}`,
-                borderRadius:"10px", padding:"44px 32px", textAlign:"center", cursor:"pointer",
-                background: dragOver ? "rgba(0,229,255,0.05)" : "var(--panel)",
+                border:`2px dashed ${dragOver?"var(--indigo2)":"var(--border2)"}`,
+                borderRadius:"14px", padding:"44px 32px", textAlign:"center", cursor:"pointer",
+                background: dragOver ? "#EEF2FF" : "white",
                 transition:"all 0.2s",
-                boxShadow: dragOver ? "0 0 30px rgba(0,229,255,0.1), inset 0 0 30px rgba(0,229,255,0.03)" : "none",
-                position:"relative", overflow:"hidden",
+                boxShadow: dragOver ? "0 0 0 4px rgba(99,102,241,0.1)" : "0 1px 4px rgba(0,0,0,0.05)",
               }}
             >
-              {dragOver && <div style={{position:"absolute",top:0,left:0,right:0,height:"1px",background:"linear-gradient(90deg,transparent,var(--cyan),transparent)"}}/>}
-              <div style={{ fontSize:"32px", marginBottom:"12px", opacity: dragOver ? 1 : 0.5 }}>⬆</div>
-              <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:"16px", fontWeight:600, color:"var(--text)", marginBottom:"5px" }}>
-                Drop your document here
+              <div style={{ fontSize:"36px", marginBottom:"12px" }}>{dragOver?"📂":"📁"}</div>
+              <div style={{ fontSize:"16px", fontWeight:700, color:"var(--text)", marginBottom:"5px" }}>
+                {dragOver ? "Drop to analyze!" : "Drop your document here"}
               </div>
-              <div style={{ fontSize:"13px", color:"var(--text3)", marginBottom:"16px" }}>or click to browse files</div>
+              <div style={{ fontSize:"13px", color:"var(--text3)", marginBottom:"16px" }}>or click to browse your files</div>
               <div style={{ display:"flex", gap:"6px", justifyContent:"center", flexWrap:"wrap" }}>
                 {[".TXT",".MD",".CSV",".DOCX",".PDF"].map(e=>(
-                  <span key={e} className="badge" style={{color:"var(--cyan)",borderColor:"var(--border2)",background:"transparent",fontSize:"10px"}}>{e}</span>
+                  <span key={e} style={{ fontSize:"11px", fontWeight:600, color:"var(--indigo2)", padding:"3px 10px", background:"#EEF2FF", borderRadius:"5px", border:"1px solid #C7D2FE" }}>{e}</span>
                 ))}
               </div>
             </div>
           </div>
           <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
 
-          <div className="fade-up-2" style={{ display:"flex", alignItems:"center", gap:"14px", margin:"18px 0" }}>
+          <div className="fade-up-2" style={{ display:"flex", alignItems:"center", gap:"14px", margin:"20px 0" }}>
             <div style={{flex:1,height:"1px",background:"var(--border)"}}/>
-            <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--text3)",letterSpacing:"2px"}}>OR</span>
+            <span style={{fontSize:"12px",fontWeight:600,color:"var(--text3)"}}>or paste text directly</span>
             <div style={{flex:1,height:"1px",background:"var(--border)"}}/>
           </div>
 
           {/* Paste */}
-          <div className="panel fade-up-3" style={{ overflow:"hidden", marginBottom:"28px" }}>
-            <div onClick={()=>setShowPaste(v=>!v)} style={{padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:showPaste?"1px solid var(--border)":"none"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-                <span style={{fontFamily:"'Space Mono',monospace",fontSize:"12px",color:"var(--cyan)"}}>{'>'}_</span>
-                <span style={{fontSize:"14px",fontWeight:500,color:"var(--text)"}}>Paste transcript or text</span>
+          <div className="card fade-up-3" style={{ overflow:"hidden", marginBottom:"28px" }}>
+            <div onClick={()=>setShowPaste(v=>!v)} style={{ padding:"15px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", borderBottom:showPaste?"1.5px solid var(--border)":"none" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+                <span style={{ fontSize:"20px" }}>✏️</span>
+                <div>
+                  <div style={{ fontSize:"14px", fontWeight:600, color:"var(--text)" }}>Paste transcript or text</div>
+                  <div style={{ fontSize:"12px", color:"var(--text3)" }}>Meeting notes, SOPs, chat exports...</div>
+                </div>
               </div>
-              <span style={{color:"var(--text3)",fontFamily:"'Space Mono',monospace",transition:"transform 0.2s",display:"inline-block",transform:showPaste?"rotate(90deg)":"rotate(0)"}}>›</span>
+              <div style={{ color:"var(--text3)", fontSize:"20px", transition:"transform 0.2s", transform:showPaste?"rotate(90deg)":"rotate(0)", fontWeight:700 }}>›</div>
             </div>
             {showPaste && (
-              <div style={{padding:"14px 18px 18px"}}>
+              <div style={{ padding:"16px 20px 20px" }}>
                 <textarea className="input" value={pasteText} onChange={e=>setPasteText(e.target.value)} autoFocus
-                  placeholder="// Paste meeting notes, transcript, SOPs, process docs..."
-                  style={{minHeight:"140px",resize:"vertical",lineHeight:1.65,fontFamily:"'Space Mono',monospace",fontSize:"12px"}}/>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}}>
-                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:pasteText.length<50?"var(--text3)":"var(--green)"}}>
-                    {pasteText.length<50?`${pasteText.length}/50_MIN`:`${pasteText.length}_CHARS ✓`}
+                  placeholder="Paste your meeting transcript, SOP, or process document here..."
+                  style={{minHeight:"140px",resize:"vertical",lineHeight:1.65}}/>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"12px" }}>
+                  <span style={{ fontSize:"12px", fontWeight:500, color:pasteText.length<50?"var(--text3)":"#059669" }}>
+                    {pasteText.length<50?`${pasteText.length} / 50 chars minimum`:`✓ ${pasteText.length} characters`}
                   </span>
-                  <div style={{display:"flex",gap:"8px"}}>
-                    <button className="btn btn-ghost" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"7px 14px",fontSize:"12px",letterSpacing:"0.5px"}}>CLEAR</button>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    <button className="btn btn-secondary" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"8px 16px",fontSize:"13px"}}>Clear</button>
                     <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&run(pasteText,"Pasted text")} disabled={pasteText.trim().length<50}
-                      style={{padding:"7px 20px",fontSize:"12px",letterSpacing:"1px",opacity:pasteText.trim().length>=50?1:0.4}}>ANALYZE →</button>
+                      style={{padding:"8px 20px",fontSize:"13px",opacity:pasteText.trim().length>=50?1:0.5}}>
+                      Analyze →
+                    </button>
                   </div>
                 </div>
               </div>
             )}
-          </div>
-
-          <div className="fade-up-4" style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-            {["AI ANALYSIS","WORD EXPORT","PDF","POWERPOINT","HTML"].map(l=>(
-              <div key={l} className="badge" style={{color:"var(--text3)",borderColor:"var(--border)",fontSize:"10px",letterSpacing:"1px"}}>{l}</div>
-            ))}
           </div>
         </div>
       )}
 
       {/* Processing */}
       {stage==="processing" && (
-        <div style={{maxWidth:"440px",margin:"80px auto",textAlign:"center",padding:"0 24px"}}>
-          <div className="panel" style={{padding:"40px",display:"inline-block",width:"100%"}}>
-            <div className="corner-tl"/><div className="corner-tr"/><div className="corner-bl"/><div className="corner-br"/>
-            <div style={{width:"56px",height:"56px",border:"2px solid var(--cyan)",borderRadius:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"24px",margin:"0 auto 20px",animation:"glowPulse 2s infinite",boxShadow:"0 0 24px rgba(0,229,255,0.2)"}}>⬡</div>
-            <h2 style={{fontFamily:"'Outfit',sans-serif",fontSize:"20px",fontWeight:700,marginBottom:"8px",color:"var(--text)"}}>Processing Document</h2>
-            <p style={{fontFamily:"'Space Mono',monospace",fontSize:"11px",color:"var(--cyan)",marginBottom:"6px",letterSpacing:"1px"}}>{progress}</p>
-            <p style={{fontSize:"12px",color:"var(--text3)",marginBottom:"28px",fontFamily:"'Space Mono',monospace"}}>// {fileName}</p>
-            <div style={{display:"flex",flexDirection:"column",gap:"8px",textAlign:"left"}}>
-              {["READING DOCUMENT","IDENTIFYING ACTORS","EXTRACTING STEPS","DETECTING DECISIONS","RENDERING FLOWCHART"].map((s,i)=>(
-                <div key={s} style={{display:"flex",alignItems:"center",gap:"12px",padding:"9px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"5px"}}>
-                  <div style={{width:"6px",height:"6px",borderRadius:"50%",background:"var(--cyan)",animation:`pulse ${1+i*0.2}s ease-in-out infinite`,flexShrink:0,boxShadow:"0 0 6px var(--cyan)"}}/>
-                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--text2)",letterSpacing:"0.5px"}}>{s}</span>
+        <div style={{ maxWidth:"460px", margin:"80px auto", padding:"0 24px", textAlign:"center" }}>
+          <div className="card" style={{ padding:"40px 32px" }}>
+            <div style={{ width:"64px", height:"64px", background:"linear-gradient(135deg,var(--indigo),var(--violet))", borderRadius:"16px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"28px", margin:"0 auto 22px", boxShadow:"0 6px 20px rgba(99,102,241,0.35)", animation:"spin 3s linear infinite" }}>⬡</div>
+            <h2 style={{ fontSize:"20px", fontWeight:800, marginBottom:"8px", color:"var(--text)" }}>Analyzing your document</h2>
+            <p style={{ fontSize:"13px", color:"var(--indigo2)", fontWeight:600, marginBottom:"5px" }}>{progress}</p>
+            <p style={{ fontSize:"12px", color:"var(--text3)", marginBottom:"28px" }}>📄 {fileName}</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:"8px", textAlign:"left" }}>
+              {["Reading & parsing document","Identifying actors & roles","Extracting process steps","Detecting decision points","Building your flowchart"].map((s,i)=>(
+                <div key={s} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:"8px" }}>
+                  <div style={{ width:"7px", height:"7px", borderRadius:"50%", background:"linear-gradient(135deg,var(--indigo),var(--violet))", animation:`pulse ${1+i*0.15}s ease-in-out infinite`, flexShrink:0 }}/>
+                  <span style={{ fontSize:"13px", color:"var(--text2)", fontWeight:500 }}>{s}</span>
                 </div>
               ))}
             </div>
@@ -889,27 +870,24 @@ export default function App() {
         </div>
       )}
 
-      {/* Result */}
-      {stage==="result" && flowData && <ResultView data={flowData}/>}
+      {stage==="result" && flowData && <div className="fade-up"><ResultView data={flowData}/></div>}
 
-      {/* Error */}
       {stage==="error" && (
-        <div style={{maxWidth:"400px",margin:"80px auto",textAlign:"center",padding:"0 24px"}}>
-          <div className="panel" style={{padding:"32px"}}>
-            <div className="corner-tl"/><div className="corner-tr"/><div className="corner-bl"/><div className="corner-br"/>
-            <div style={{fontSize:"32px",marginBottom:"16px",color:"var(--red)"}}>✕</div>
-            <h2 style={{fontFamily:"'Outfit',sans-serif",fontSize:"20px",fontWeight:700,marginBottom:"10px",color:"var(--text)"}}>Error Occurred</h2>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:"12px",color:"var(--red)",padding:"10px 14px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:"6px",marginBottom:"24px",lineHeight:1.6}}>{errorMsg}</div>
-            <div style={{display:"flex",gap:"8px",justifyContent:"center"}}>
-              <button className="btn btn-primary" onClick={reset} style={{letterSpacing:"1px"}}>RETRY</button>
-              <button className="btn btn-ghost" onClick={()=>setApiKey("")} style={{letterSpacing:"0.5px"}}>CHANGE KEY</button>
+        <div style={{ maxWidth:"420px", margin:"80px auto", padding:"0 24px", textAlign:"center" }}>
+          <div className="card" style={{ padding:"36px 32px" }}>
+            <div style={{ fontSize:"42px", marginBottom:"16px" }}>😕</div>
+            <h2 style={{ fontSize:"20px", fontWeight:800, marginBottom:"10px", color:"var(--text)" }}>Something went wrong</h2>
+            <div style={{ fontSize:"13px", color:"#DC2626", padding:"12px 14px", background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:"10px", marginBottom:"24px", lineHeight:1.55 }}>{errorMsg}</div>
+            <div style={{ display:"flex", gap:"8px", justifyContent:"center" }}>
+              <button className="btn btn-primary" onClick={reset}>Try Again</button>
+              <button className="btn btn-secondary" onClick={()=>setApiKey("")}>Change Key</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{textAlign:"center",padding:"24px",borderTop:"1px solid var(--border)",marginTop:"20px"}}>
-        <span style={{fontFamily:"'Space Mono',monospace",fontSize:"10px",color:"var(--text3)",letterSpacing:"2px"}}>FLOWSCRIBE AI · TRANSCRIPT INTELLIGENCE</span>
+      <div style={{ textAlign:"center", padding:"24px", borderTop:"1px solid var(--border)", marginTop:"20px" }}>
+        <span style={{ fontSize:"12px", color:"var(--text3)", fontWeight:500 }}>FlowScribe AI · Turn transcripts into visual flowcharts</span>
       </div>
     </div>
   );
