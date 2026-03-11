@@ -129,6 +129,59 @@ function doExportPPT(data) {
   const a=document.createElement("a");a.href=u;a.download=`${data.title.replace(/\s+/g,"_")}_slides.html`;a.click();URL.revokeObjectURL(u);
 }
 
+// ── GLOBAL CSS (main app shell) ───────────────────────────────────────────────
+const GCSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F8F9FF; --white: #fff; --border: #E4E7F0; --border2: #C7D2FE;
+    --text: #0F172A; --text2: #475569; --text3: #94A3B8;
+    --indigo: #4F46E5; --violet: #7C3AED; --surface: #F1F3FF;
+  }
+  body { background: var(--bg); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #C7D2FE; border-radius: 3px; }
+  .nav { height: 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-logo { width: 34px; height: 34px; background: linear-gradient(135deg, var(--indigo), var(--violet)); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 17px; box-shadow: 0 2px 10px rgba(99,102,241,0.4); }
+  .nav-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+  .nav-pill { background: linear-gradient(135deg, #EEF2FF, #F5F0FF); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #6366F1; }
+  .btn { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 600; border-radius: 9px; padding: 8px 18px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s cubic-bezier(0.34,1.3,0.64,1); }
+  .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--violet)); color: white; box-shadow: 0 2px 12px rgba(99,102,241,0.35); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.45); }
+  .btn-primary:disabled { background: #CBD5E1; box-shadow: none; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: white; color: var(--text2); border-color: var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .btn-secondary:hover { border-color: #6366F1; color: var(--indigo); transform: translateY(-1px); }
+  .input { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; color: var(--text); background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; width: 100%; outline: none; transition: all 0.2s; }
+  .input:focus { border-color: #6366F1; box-shadow: 0 0 0 4px rgba(99,102,241,0.1); }
+  .input::placeholder { color: #C4C9D4; }
+  .card { background: white; border: 1.5px solid var(--border); border-radius: 16px; box-shadow: 0 2px 8px rgba(99,102,241,0.06); }
+  .sidebar { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border); background: white; height: calc(100vh - 62px); overflow-y: auto; position: sticky; top: 62px; }
+  .sidebar-item { padding: 12px 16px; border-bottom: 1px solid #F1F5F9; cursor: pointer; transition: all 0.15s; border-left: 3px solid transparent; }
+  .sidebar-item:hover { background: var(--surface); border-left-color: #6366F1; }
+  .sidebar-item.active { background: #EEF2FF; border-left-color: var(--indigo); }
+  .drop-zone { border: 2px dashed var(--border2); border-radius: 14px; padding: 36px 28px; text-align: center; cursor: pointer; background: white; transition: all 0.25s; }
+  .drop-zone:hover, .drop-zone.over { border-color: #6366F1; background: #EEF2FF; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.1); }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--text3); text-transform: uppercase; margin-bottom: 8px; }
+  .exp-btn { font-family: 'Plus Jakarta Sans',sans-serif; font-size: 12px; font-weight: 600; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--text2); transition: all 0.2s; display: flex; align-items: center; gap: 5px; }
+  .exp-btn:hover { border-color: #6366F1; color: var(--indigo); background: #EEF2FF; transform: translateY(-2px); }
+  .fade-up   { animation: fadeUp 0.45s ease both; }
+  .fade-up-1 { animation: fadeUp 0.45s 0.07s ease both; }
+  .fade-up-2 { animation: fadeUp 0.45s 0.14s ease both; }
+  .fade-up-3 { animation: fadeUp 0.45s 0.21s ease both; }
+  .scale-in  { animation: badgePop 0.35s ease both; }
+  @keyframes fadeUp    { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes badgePop  { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+  @keyframes slideUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes cardIn    { from{opacity:0;transform:translateY(24px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes spinSlow  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes pulse     { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  @keyframes float     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes dotPulse  { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+  @keyframes titleReveal { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+`;
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ── SVG FLOWCHART ENGINE  (fixed text wrap + edit mode) ───────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
