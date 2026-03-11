@@ -130,1321 +130,564 @@ function doExportPPT(data) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ── SVG FLOWCHART ENGINE ──────────────────────────────────════════════════════
+// ── SVG FLOWCHART ENGINE  (fixed text wrap + edit mode) ───────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
-const NODE_W = 200;
-const NODE_H = 56;
-const DEC_W  = 180;
-const DEC_H  = 64;
-const PILL_W = 120;
-const PILL_H = 40;
-const LEVEL_GAP = 100;
-const BRANCH_GAP = 260;
+const NODE_W    = 220;
+const NODE_H    = 72;
+const DEC_W     = 200;
+const DEC_H     = 72;
+const LEVEL_GAP = 110;
+const BRANCH_GAP= 280;
+
+// Wrap text into lines fitting maxW chars
+function wrapText(text, maxChars) {
+  if (!text) return [""];
+  const words = text.split(" ");
+  const lines = [];
+  let cur = "";
+  words.forEach(w => {
+    if ((cur + " " + w).trim().length <= maxChars) {
+      cur = (cur + " " + w).trim();
+    } else {
+      if (cur) lines.push(cur);
+      cur = w.substring(0, maxChars);
+    }
+  });
+  if (cur) lines.push(cur);
+  return lines.slice(0, 3); // max 3 lines
+}
+
+// Render multi-line SVG text centered
+function SvgText({ x, y, text, fontSize, fontWeight, fill, maxChars, lineH, fontFamily }) {
+  const lines = wrapText(text, maxChars || 20);
+  const totalH = lines.length * (lineH || (fontSize * 1.35));
+  const startY = y - totalH / 2 + (lineH || (fontSize * 1.35)) * 0.7;
+  return (
+    <>
+      {lines.map((l, i) => (
+        <text key={i} x={x} y={startY + i * (lineH || (fontSize * 1.35))}
+          textAnchor="middle" fontSize={fontSize} fontWeight={fontWeight || "600"}
+          fill={fill} fontFamily={fontFamily || "Plus Jakarta Sans, sans-serif"}
+          style={{ userSelect:"none" }}>
+          {l}
+        </text>
+      ))}
+    </>
+  );
+}
 
 function layoutGraph(nodes, edges) {
-  if (!nodes?.length) return { positioned: [], svgEdges: [], width: 400, height: 400 };
+  if (!nodes?.length) return { positioned:[], svgEdges:[], width:400, height:400 };
 
-  // Build adjacency
-  const children = {};
-  const parents  = {};
-  nodes.forEach(n => { children[n.id] = []; parents[n.id] = []; });
+  const children = {}, parents = {};
+  nodes.forEach(n => { children[n.id]=[]; parents[n.id]=[]; });
   edges.forEach(e => {
-    if (children[e.from]) children[e.from].push({ to: e.to, label: e.label || "" });
-    if (parents[e.to])  parents[e.to].push(e.from);
+    if (children[e.from]) children[e.from].push({ to:e.to, label:e.label||"" });
+    if (parents[e.to])    parents[e.to].push(e.from);
   });
 
   // BFS levels
   const levels = {};
-  const startNode = nodes.find(n => n.type === "start") || nodes[0];
-  const queue = [{ id: startNode.id, level: 0 }];
+  const startNode = nodes.find(n=>n.type==="start")||nodes[0];
+  const queue = [{ id:startNode.id, level:0 }];
   const visited = new Set();
   while (queue.length) {
     const { id, level } = queue.shift();
     if (visited.has(id)) continue;
     visited.add(id);
-    levels[id] = level;
-    (children[id] || []).forEach(c => {
-      if (!visited.has(c.to)) queue.push({ id: c.to, level: level + 1 });
-    });
+    levels[id] = Math.max(levels[id]||0, level);
+    (children[id]||[]).forEach(c => { if (!visited.has(c.to)) queue.push({ id:c.to, level:level+1 }); });
   }
-  // Assign unvisited
-  nodes.forEach(n => { if (levels[n.id] === undefined) levels[n.id] = 0; });
+  nodes.forEach(n => { if (levels[n.id]===undefined) levels[n.id]=0; });
 
-  // Group by level
   const byLevel = {};
   nodes.forEach(n => {
     const l = levels[n.id];
     if (!byLevel[l]) byLevel[l] = [];
-    byLevel[l].push(n);
+    byLevel[l].push(n.id);
   });
 
-  const maxLevel = Math.max(...Object.keys(byLevel).map(Number));
+  const maxLevel = Math.max(...Object.values(levels));
+  const VGAP = LEVEL_GAP + NODE_H;
   const positions = {};
-  let totalHeight = 60;
 
-  for (let l = 0; l <= maxLevel; l++) {
-    const group = byLevel[l] || [];
-    const totalWidth = group.length * BRANCH_GAP;
-    const startX = totalWidth / 2 - BRANCH_GAP / 2;
-    group.forEach((n, i) => {
-      const x = (group.length === 1) ? 0 : (i * BRANCH_GAP) - startX;
-      positions[n.id] = { x, y: totalHeight };
+  for (let l=0; l<=maxLevel; l++) {
+    const grp = byLevel[l]||[];
+    grp.forEach((id,i) => {
+      const totalW = grp.length * NODE_W + (grp.length-1) * BRANCH_GAP;
+      positions[id] = {
+        x: 400 + i*(NODE_W+BRANCH_GAP) - (grp.length-1)*(NODE_W+BRANCH_GAP)/2,
+        y: 60 + l * VGAP,
+      };
     });
-    const levelH = group.some(n => n.type === "decision") ? DEC_H : NODE_H;
-    totalHeight += levelH + LEVEL_GAP;
   }
-
-  // Normalize x to be positive
-  const allX = Object.values(positions).map(p => p.x);
-  const minX = Math.min(...allX);
-  const maxX = Math.max(...allX);
-  const offsetX = -minX + 60;
-  Object.keys(positions).forEach(id => { positions[id].x += offsetX; });
-
-  const svgWidth  = (maxX - minX) + NODE_W + 120;
-  const svgHeight = totalHeight + 40;
 
   const positioned = nodes.map(n => ({ ...n, ...positions[n.id] }));
-
-  // Build SVG edges
-  const svgEdges = edges.map(e => {
-    const from = positions[e.from];
-    const to   = positions[e.to];
-    const fNode = nodes.find(n => n.id === e.from);
-    const tNode = nodes.find(n => n.id === e.to);
-    if (!from || !to) return null;
-
-    const fw = fNode?.type === "decision" ? DEC_W : fNode?.type === "start" || fNode?.type === "end" ? PILL_W : NODE_W;
-    const fh = fNode?.type === "decision" ? DEC_H : NODE_H;
-    const th = tNode?.type === "decision" ? DEC_H : NODE_H;
-
-    // source point — from bottom of source node
-    const sx = from.x + fw / 2;
-    const sy = from.y + fh;
-    // target point — into top of target node
-    const tx = to.x + (tNode?.type === "decision" ? DEC_W : tNode?.type === "start" || tNode?.type === "end" ? PILL_W : NODE_W) / 2;
-    const ty = to.y;
-
-    // curved path
-    const dy = Math.abs(ty - sy);
-    const dx = Math.abs(tx - sx);
-    let d;
-    if (dx < 10) {
-      // straight vertical
-      d = `M${sx},${sy} C${sx},${sy+dy*0.4} ${tx},${ty-dy*0.4} ${tx},${ty}`;
-    } else {
-      // branch
-      const midY = sy + LEVEL_GAP * 0.5;
-      d = `M${sx},${sy} L${sx},${midY} L${tx},${midY} L${tx},${ty}`;
-    }
-
-    return { d, label: e.label, lx: (sx+tx)/2, ly: (sy+ty)/2, key:`${e.from}-${e.to}` };
-  }).filter(Boolean);
-
-  return { positioned, svgEdges, width: Math.max(svgWidth, 340), height: svgHeight };
+  const maxY = Math.max(...positioned.map(n=>(n.y||0)+NODE_H));
+  const maxX = Math.max(...positioned.map(n=>(n.x||0)+NODE_W));
+  return { positioned, svgEdges:edges, width:Math.max(maxX+260,800), height:maxY+140 };
 }
 
-function FlowchartSVG({ data, onNodeClick, activeNode }) {
+// ── EDIT MODAL ────────────────────────────────────────────────────────────────
+function EditModal({ node, actors, onSave, onClose }) {
+  const [label, setLabel]       = useState(node.label||"");
+  const [desc,  setDesc]        = useState(node.description||"");
+  const [steps, setSteps]       = useState((node.steps||[]).join("\n"));
+  const [output,setOutput]      = useState(node.output||"");
+  const [note,  setNote]        = useState(node.note||"");
+  const [actorId,setActorId]    = useState(node.actor||node.actorId||"");
+
+  const save = () => {
+    onSave({
+      ...node,
+      label,
+      description: desc,
+      steps: steps.split("\n").map(s=>s.trim()).filter(Boolean),
+      output,
+      note,
+      actor: actorId,
+      actorId,
+    });
+  };
+
+  const inputStyle = {
+    width:"100%", fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"13px",
+    color:"#0F172A", background:"#F8F9FF", border:"1.5px solid #E4E7F0",
+    borderRadius:"9px", padding:"9px 12px", outline:"none",
+    transition:"border 0.2s", boxSizing:"border-box", marginBottom:"0",
+  };
+  const labelStyle = {
+    fontSize:"10px", fontWeight:"700", letterSpacing:"1.2px",
+    textTransform:"uppercase", color:"#94A3B8", marginBottom:"5px", display:"block",
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:9999,
+      display:"flex", alignItems:"center", justifyContent:"center", padding:"16px",
+      backdropFilter:"blur(4px)", animation:"fadeIn 0.2s ease" }}>
+      <div style={{ background:"white", borderRadius:"20px", padding:"28px",
+        width:"100%", maxWidth:"500px", maxHeight:"90vh", overflowY:"auto",
+        boxShadow:"0 24px 80px rgba(0,0,0,0.25)", animation:"cardIn 0.3s cubic-bezier(0.34,1.3,0.64,1)" }}>
+
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"22px" }}>
+          <div>
+            <div style={{ fontSize:"16px", fontWeight:"800", color:"#0F172A" }}>Edit Node</div>
+            <div style={{ fontSize:"12px", color:"#94A3B8", marginTop:"2px" }}>
+              {node.type==="decision"?"Decision node":"Process node"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"#F1F5F9", border:"none", borderRadius:"10px",
+            width:"36px", height:"36px", cursor:"pointer", fontSize:"18px", color:"#64748B",
+            display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+        </div>
+
+        <div style={{ marginBottom:"14px" }}>
+          <label style={labelStyle}>Label</label>
+          <input style={inputStyle} value={label} onChange={e=>setLabel(e.target.value)}
+            onFocus={e=>e.target.style.borderColor="#6366F1"}
+            onBlur={e=>e.target.style.borderColor="#E4E7F0"}
+            placeholder="Node label"/>
+        </div>
+
+        {node.type==="process" && <>
+          {actors?.length>0 && (
+            <div style={{ marginBottom:"14px" }}>
+              <label style={labelStyle}>Actor / Owner</label>
+              <select style={{...inputStyle, cursor:"pointer"}} value={actorId}
+                onChange={e=>setActorId(e.target.value)}>
+                <option value="">— None —</option>
+                {actors.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ marginBottom:"14px" }}>
+            <label style={labelStyle}>Description</label>
+            <textarea style={{...inputStyle, minHeight:"64px", resize:"vertical", lineHeight:1.5}}
+              value={desc} onChange={e=>setDesc(e.target.value)}
+              onFocus={e=>e.target.style.borderColor="#6366F1"}
+              onBlur={e=>e.target.style.borderColor="#E4E7F0"}
+              placeholder="What happens in this step?"/>
+          </div>
+          <div style={{ marginBottom:"14px" }}>
+            <label style={labelStyle}>Steps (one per line)</label>
+            <textarea style={{...inputStyle, minHeight:"80px", resize:"vertical", lineHeight:1.6}}
+              value={steps} onChange={e=>setSteps(e.target.value)}
+              onFocus={e=>e.target.style.borderColor="#6366F1"}
+              onBlur={e=>e.target.style.borderColor="#E4E7F0"}
+              placeholder="Step 1&#10;Step 2&#10;Step 3"/>
+          </div>
+          <div style={{ marginBottom:"14px" }}>
+            <label style={labelStyle}>Output</label>
+            <input style={inputStyle} value={output} onChange={e=>setOutput(e.target.value)}
+              onFocus={e=>e.target.style.borderColor="#6366F1"}
+              onBlur={e=>e.target.style.borderColor="#E4E7F0"}
+              placeholder="What does this step produce?"/>
+          </div>
+          <div style={{ marginBottom:"20px" }}>
+            <label style={labelStyle}>Note / Warning</label>
+            <input style={inputStyle} value={note} onChange={e=>setNote(e.target.value)}
+              onFocus={e=>e.target.style.borderColor="#6366F1"}
+              onBlur={e=>e.target.style.borderColor="#E4E7F0"}
+              placeholder="Optional warning or note"/>
+          </div>
+        </>}
+
+        <div style={{ display:"flex", gap:"10px" }}>
+          <button onClick={onClose} style={{ flex:1, fontFamily:"Plus Jakarta Sans,sans-serif",
+            fontSize:"14px", fontWeight:"600", padding:"11px", borderRadius:"10px",
+            border:"1.5px solid #E4E7F0", background:"white", cursor:"pointer", color:"#64748B" }}>
+            Cancel
+          </button>
+          <button onClick={save} style={{ flex:2, fontFamily:"Plus Jakarta Sans,sans-serif",
+            fontSize:"14px", fontWeight:"700", padding:"11px", borderRadius:"10px",
+            border:"none", background:"linear-gradient(135deg,#4F46E5,#7C3AED)",
+            cursor:"pointer", color:"white",
+            boxShadow:"0 4px 14px rgba(99,102,241,0.4)" }}>
+            Save Changes ✓
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SVG FLOWCHART ─────────────────────────────────────────────────────────────
+function SvgFlowchart({ data, onDataChange }) {
+  const [zoom,    setZoom]    = useState(1);
+  const [editing, setEditing] = useState(null);
+  const [selected,setSelected]= useState(null);
+
   const { positioned, svgEdges, width, height } = useMemo(
     () => layoutGraph(data.nodes, data.edges),
-    [data]
+    [data.nodes, data.edges]
   );
 
-  const actorColor = (actorId) => {
-    const idx = data.actors?.findIndex(a => a.id === actorId) ?? 0;
-    return COLORS[idx % COLORS.length];
+  const getColor = useCallback((node) => {
+    if (node.type==="start") return "#10B981";
+    if (node.type==="end")   return "#EF4444";
+    if (node.type==="decision") return "#F59E0B";
+    const actor = data.actors?.find(a=>a.id===node.actor||a.id===node.actorId);
+    return actor?.color||"#6366F1";
+  }, [data.actors]);
+
+  const handleEdit = (node) => {
+    if (node.type==="start"||node.type==="end") return;
+    setEditing(node);
+  };
+
+  const handleSave = (updatedNode) => {
+    const newNodes = data.nodes.map(n => n.id===updatedNode.id ? updatedNode : n);
+    onDataChange({ ...data, nodes:newNodes });
+    setEditing(null);
+  };
+
+  const selectedNode = positioned.find(n=>n.id===selected);
+  const selActor = selectedNode ? data.actors?.find(a=>a.id===(selectedNode.actor||selectedNode.actorId)) : null;
+
+  // Draw edge path
+  const getPath = (edge) => {
+    const fn = positioned.find(n=>n.id===edge.from);
+    const tn = positioned.find(n=>n.id===edge.to);
+    if (!fn||!tn) return null;
+
+    let x1=fn.x, y1=fn.type==="decision"?fn.y+DEC_H/2:fn.y+NODE_H;
+    let x2=tn.x, y2=tn.type==="decision"?tn.y-DEC_H/2:tn.y;
+
+    const isBranch = Math.abs(x1-x2) > 30;
+    if (fn.type==="decision" && isBranch) {
+      const side = x2>x1 ? 1 : -1;
+      x1 = fn.x + side*(DEC_W/2);
+      y1 = fn.y;
+      return `M${x1},${y1} H${x2} V${y2}`;
+    }
+    const my = (y1+y2)/2;
+    return `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
+  };
+
+  const getEdgeLabelPos = (edge) => {
+    const fn = positioned.find(n=>n.id===edge.from);
+    const tn = positioned.find(n=>n.id===edge.to);
+    if (!fn||!tn||!edge.label) return null;
+    if (fn.type==="decision" && Math.abs(fn.x-tn.x)>30) {
+      const side = tn.x>fn.x ? 1 : -1;
+      return { x: fn.x + side*(DEC_W/2+28), y: fn.y };
+    }
+    const y1 = fn.type==="decision"?fn.y+DEC_H/2:fn.y+NODE_H;
+    const y2 = tn.type==="decision"?tn.y-DEC_H/2:tn.y;
+    return { x: fn.x+18, y: (y1+y2)/2 };
   };
 
   return (
-    <div style={{ overflowX:"auto", overflowY:"auto", maxHeight:"calc(100vh - 280px)", padding:"20px" }}>
-      <svg width={width} height={height} style={{ display:"block", margin:"0 auto" }}>
-        <defs>
-          <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#6366F1" opacity="0.7"/>
-          </marker>
-          <marker id="arrow-yes" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#10B981"/>
-          </marker>
-          <marker id="arrow-no" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" fill="#EF4444"/>
-          </marker>
-          <filter id="shadow">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#6366F1" floodOpacity="0.12"/>
-          </filter>
-          <filter id="shadow-active">
-            <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#6366F1" floodOpacity="0.35"/>
-          </filter>
-        </defs>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
 
-        {/* Edges */}
-        {svgEdges.map(e => {
-          const isYes = e.label?.toUpperCase() === "YES";
-          const isNo  = e.label?.toUpperCase() === "NO";
-          const color = isYes ? "#10B981" : isNo ? "#EF4444" : "#6366F1";
-          const markerId = isYes ? "arrow-yes" : isNo ? "arrow-no" : "arrow";
-          return (
-            <g key={e.key}>
-              <path d={e.d} fill="none" stroke={color} strokeWidth={isYes||isNo?2:1.5}
-                strokeDasharray={isNo?"6,3":undefined}
-                markerEnd={`url(#${markerId})`} opacity={0.7}/>
-              {e.label && (
-                <>
-                  <rect x={e.lx-24} y={e.ly-11} width={48} height={20} rx={10}
-                    fill={isYes?"#ECFDF5":isNo?"#FEF2F2":"#EEF2FF"}
-                    stroke={color} strokeWidth={1} opacity={0.95}/>
-                  <text x={e.lx} y={e.ly+4} textAnchor="middle"
-                    fill={isYes?"#065F46":isNo?"#991B1B":"#4F46E5"}
-                    fontSize={10} fontWeight="700" fontFamily="system-ui">
-                    {e.label}
+      {/* Toolbar */}
+      <div style={{ display:"flex", alignItems:"center", gap:"8px", padding:"10px 18px",
+        borderBottom:"1px solid var(--border)", background:"white", flexShrink:0, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+          <button onClick={()=>setZoom(z=>Math.max(0.3,z-0.1))}
+            style={{ width:"30px",height:"30px",border:"1.5px solid var(--border)",borderRadius:"7px",
+              background:"white",cursor:"pointer",fontSize:"17px",color:"var(--text2)",display:"flex",alignItems:"center",justifyContent:"center" }}>−</button>
+          <span style={{ fontSize:"12px",fontWeight:700,color:"var(--indigo)",minWidth:"38px",textAlign:"center" }}>{Math.round(zoom*100)}%</span>
+          <button onClick={()=>setZoom(z=>Math.min(2.5,z+0.1))}
+            style={{ width:"30px",height:"30px",border:"1.5px solid var(--border)",borderRadius:"7px",
+              background:"white",cursor:"pointer",fontSize:"17px",color:"var(--text2)",display:"flex",alignItems:"center",justifyContent:"center" }}>+</button>
+          <button onClick={()=>setZoom(1)}
+            style={{ fontSize:"11px",fontWeight:600,padding:"5px 10px",border:"1.5px solid var(--border)",
+              borderRadius:"7px",background:"white",cursor:"pointer",color:"var(--text2)" }}>Reset</button>
+        </div>
+        <div style={{ flex:1 }}/>
+        <div style={{ display:"flex", gap:"10px", fontSize:"11.5px", color:"var(--text3)", flexWrap:"wrap", alignItems:"center" }}>
+          <span>🟢 Start/End</span><span>🟡 Decision</span><span>🟣 Process</span>
+          <span style={{ fontStyle:"italic" }}>✏️ Double-click to edit</span>
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div style={{ flex:1, overflow:"auto", background:"#F8F9FF" }}>
+        <div style={{ transform:`scale(${zoom})`, transformOrigin:"top center",
+          transition:"transform 0.2s", padding:"24px", minWidth:"fit-content" }}>
+          <svg width={width} height={height} style={{ display:"block", margin:"0 auto", overflow:"visible" }}>
+            <defs>
+              <marker id="arr-default" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L9,3.5 z" fill="#6366F1" opacity="0.7"/>
+              </marker>
+              <marker id="arr-yes" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L9,3.5 z" fill="#10B981"/>
+              </marker>
+              <marker id="arr-no" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L9,3.5 z" fill="#EF4444"/>
+              </marker>
+              <filter id="node-shadow">
+                <feDropShadow dx="0" dy="3" stdDeviation="7" floodColor="rgba(99,102,241,0.13)"/>
+              </filter>
+              <filter id="node-shadow-sel">
+                <feDropShadow dx="0" dy="6" stdDeviation="14" floodColor="rgba(99,102,241,0.38)"/>
+              </filter>
+              {/* Grid dots */}
+              <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <circle cx="20" cy="20" r="1" fill="#DDE1F0"/>
+              </pattern>
+            </defs>
+
+            {/* Background dots */}
+            <rect width={width} height={height} fill="url(#dots)"/>
+
+            {/* ── EDGES ── */}
+            {svgEdges.map((edge,i) => {
+              const path = getPath(edge);
+              if (!path) return null;
+              const isYes = edge.label==="YES";
+              const isNo  = edge.label==="NO";
+              const color = isYes?"#10B981":isNo?"#EF4444":"#6366F1";
+              const marker= isYes?"arr-yes":isNo?"arr-no":"arr-default";
+              const lp    = getEdgeLabelPos(edge);
+              return (
+                <g key={i}>
+                  <path d={path} fill="none" stroke={color} strokeWidth="2"
+                    strokeOpacity="0.65" markerEnd={`url(#${marker})`}/>
+                  {lp && (
+                    <g>
+                      <rect x={lp.x-18} y={lp.y-11} width="36" height="20" rx="10"
+                        fill={isYes?"#ECFDF5":isNo?"#FEF2F2":"#EEF2FF"}
+                        stroke={isYes?"#6EE7B7":isNo?"#FCA5A5":"#C7D2FE"} strokeWidth="1.2"/>
+                      <text x={lp.x} y={lp.y+4} textAnchor="middle"
+                        fontSize="9.5" fontWeight="800"
+                        fill={isYes?"#059669":isNo?"#DC2626":"#4F46E5"}
+                        fontFamily="Plus Jakarta Sans,sans-serif">
+                        {edge.label}
+                      </text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* ── NODES ── */}
+            {positioned.map(node => {
+              const color = getColor(node);
+              const isSel = selected===node.id;
+              const filt  = isSel?"url(#node-shadow-sel)":"url(#node-shadow)";
+              const canEdit = node.type!=="start"&&node.type!=="end";
+              const processIdx = positioned.filter(n=>n.type==="process").indexOf(node);
+
+              // ── START / END oval ──
+              if (node.type==="start"||node.type==="end") return (
+                <g key={node.id} style={{cursor:"default"}}>
+                  <ellipse cx={node.x} cy={node.y+NODE_H/2}
+                    rx={NODE_W/2} ry={NODE_H/2-4}
+                    fill={color} filter={filt}/>
+                  <text x={node.x} y={node.y+NODE_H/2+5}
+                    textAnchor="middle" fontSize="13" fontWeight="700"
+                    fill="white" fontFamily="Plus Jakarta Sans,sans-serif">
+                    {node.label||(node.type==="end"?"End":"Start")}
                   </text>
-                </>
-              )}
-            </g>
-          );
-        })}
+                </g>
+              );
 
-        {/* Nodes */}
-        {positioned.map(node => {
-          const isActive = activeNode === node.id;
-          const color = node.type === "decision" ? "#F59E0B"
-            : node.type === "start" ? "#6366F1"
-            : node.type === "end" ? "#10B981"
-            : actorColor(node.actorId);
+              // ── DECISION diamond ──
+              if (node.type==="decision") {
+                const hw=DEC_W/2, hh=DEC_H/2;
+                const pts=`${node.x},${node.y-hh} ${node.x+hw},${node.y} ${node.x},${node.y+hh} ${node.x-hw},${node.y}`;
+                const labelLines = wrapText(node.label||"", 16);
+                const lineH = 14;
+                const totalH = labelLines.length * lineH;
+                return (
+                  <g key={node.id} style={{cursor:canEdit?"pointer":"default"}}
+                    onClick={()=>setSelected(isSel?null:node.id)}
+                    onDoubleClick={()=>handleEdit(node)}>
+                    <polygon points={pts} fill={color} filter={filt}
+                      stroke={isSel?"white":"none"} strokeWidth="2.5"/>
+                    {/* Edit icon */}
+                    {canEdit && <text x={node.x+hw-10} y={node.y-hh+14} fontSize="10" fill="rgba(255,255,255,0.7)">✏️</text>}
+                    {labelLines.map((l,li)=>(
+                      <text key={li} x={node.x} y={node.y - totalH/2 + li*lineH + lineH*0.75}
+                        textAnchor="middle" fontSize="11" fontWeight="700"
+                        fill="white" fontFamily="Plus Jakarta Sans,sans-serif">
+                        {l}
+                      </text>
+                    ))}
+                  </g>
+                );
+              }
 
-          if (node.type === "start" || node.type === "end") {
-            const bg = node.type === "start" ? "#4F46E5" : "#10B981";
-            return (
-              <g key={node.id} style={{ cursor:"default" }}>
-                <rect x={node.x} y={node.y} width={PILL_W} height={PILL_H} rx={PILL_H/2}
-                  fill={bg} filter="url(#shadow)"
-                  stroke="white" strokeWidth={2}/>
-                <text x={node.x+PILL_W/2} y={node.y+PILL_H/2+5}
-                  textAnchor="middle" fill="white" fontSize={13} fontWeight="700" fontFamily="system-ui">
-                  {node.label || (node.type === "start" ? "Start" : "End")}
-                </text>
-              </g>
-            );
-          }
+              // ── PROCESS rect ──
+              const actor = data.actors?.find(a=>a.id===(node.actor||node.actorId));
+              const labelLines = wrapText(node.label||"", 18);
+              const actorName  = actor?.name||"";
+              const actorLines = wrapText(actorName, 22);
 
-          if (node.type === "decision") {
-            const cx = node.x + DEC_W/2;
-            const cy = node.y + DEC_H/2;
-            const hw = DEC_W/2 - 4;
-            const hh = DEC_H/2 - 4;
-            const pts = `${cx},${cy-hh} ${cx+hw},${cy} ${cx},${cy+hh} ${cx-hw},${cy}`;
-            return (
-              <g key={node.id} onClick={() => onNodeClick(node.id)}
-                style={{ cursor:"pointer" }}>
-                <polygon points={pts} fill="#FFFBEB"
-                  stroke={isActive?"#F59E0B":"#FDE68A"} strokeWidth={isActive?2.5:2}
-                  filter={isActive?"url(#shadow-active)":"url(#shadow)"}/>
-                <text x={cx} y={cy-6} textAnchor="middle"
-                  fill="#92400E" fontSize={11} fontWeight="700" fontFamily="system-ui">
-                  {node.label}
-                </text>
-                <text x={cx} y={cy+8} textAnchor="middle"
-                  fill="#B45309" fontSize={9} fontFamily="system-ui">
-                  {node.question?.substring(0,28)}
-                </text>
-              </g>
-            );
-          }
-
-          // Process node
-          const actor = data.actors?.find(a => a.id === node.actorId);
-          return (
-            <g key={node.id} onClick={() => onNodeClick(node.id)} style={{ cursor:"pointer" }}>
-              {/* Shadow rect */}
-              <rect x={node.x+2} y={node.y+3} width={NODE_W} height={NODE_H} rx={10}
-                fill={color} opacity={0.08}/>
-              {/* Main rect */}
-              <rect x={node.x} y={node.y} width={NODE_W} height={NODE_H} rx={10}
-                fill="white"
-                stroke={isActive ? color : `${color}55`}
-                strokeWidth={isActive ? 2.5 : 1.5}
-                filter={isActive?"url(#shadow-active)":"url(#shadow)"}/>
-              {/* Top color bar */}
-              <rect x={node.x} y={node.y} width={NODE_W} height={4} rx={2}
-                fill={`url(#grad-${node.id})`}/>
-              <defs>
-                <linearGradient id={`grad-${node.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor={color}/>
-                  <stop offset="100%" stopColor={`${color}55`}/>
-                </linearGradient>
-              </defs>
-              {/* Icon circle */}
-              <circle cx={node.x+26} cy={node.y+NODE_H/2} r={14}
-                fill={`${color}14`} stroke={`${color}30`} strokeWidth={1}/>
-              <text x={node.x+26} y={node.y+NODE_H/2+5}
-                textAnchor="middle" fontSize={14}>
-                {node.icon || "📋"}
-              </text>
-              {/* Title */}
-              <text x={node.x+46} y={node.y+22}
-                fill="#0F172A" fontSize={12} fontWeight="700" fontFamily="system-ui">
-                {node.label?.substring(0,22)}
-              </text>
-              {/* Actor */}
-              <text x={node.x+46} y={node.y+38}
-                fill={color} fontSize={10} fontFamily="system-ui" fontWeight="600">
-                {actor ? `${actor.emoji} ${actor.name}` : ""}
-              </text>
-              {/* Step badge */}
-              <rect x={node.x+NODE_W-34} y={node.y+8} width={26} height={16} rx={4}
-                fill={color}/>
-              <text x={node.x+NODE_W-21} y={node.y+20}
-                textAnchor="middle" fill="white" fontSize={9} fontWeight="700" fontFamily="system-ui">
-                {String(positioned.filter(p=>p.type==="process").indexOf(node)+1).padStart(2,"0")}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-// ── NODE DETAIL PANEL ─────────────────────────────────────────────────────────
-function NodeDetail({ node, actors, onClose }) {
-  if (!node || node.type === "start" || node.type === "end") return null;
-  const actor = actors?.find(a => a.id === node.actorId);
-  const color = node.type === "decision" ? "#F59E0B" : "#6366F1";
-
-  return (
-    <div style={{ position:"fixed", bottom:24, right:24, width:320, background:"white", border:`2px solid ${color}33`, borderRadius:16, boxShadow:"0 12px 40px rgba(99,102,241,0.18)", zIndex:200, animation:"slideUp 0.25s cubic-bezier(0.34,1.3,0.64,1) both", overflow:"hidden" }}>
-      <div style={{ height:3, background:`linear-gradient(90deg,${color},${color}55)` }}/>
-      <div style={{ padding:"16px 18px" }}>
-        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"12px" }}>
-          <div>
-            <div style={{ fontSize:"14px", fontWeight:700, marginBottom:"3px" }}>{node.label}</div>
-            {actor && <div style={{ fontSize:"11px", color, fontWeight:600 }}>{actor.emoji} {actor.name}</div>}
-          </div>
-          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:"18px", color:"#94A3B8", padding:"0 2px", lineHeight:1 }}>×</button>
+              return (
+                <g key={node.id} style={{cursor:"pointer"}}
+                  onClick={()=>setSelected(isSel?null:node.id)}
+                  onDoubleClick={()=>handleEdit(node)}>
+                  {/* Card shadow */}
+                  <rect x={node.x-NODE_W/2+3} y={node.y+5} width={NODE_W} height={NODE_H}
+                    rx="14" fill="rgba(99,102,241,0.07)"/>
+                  {/* Card body */}
+                  <rect x={node.x-NODE_W/2} y={node.y} width={NODE_W} height={NODE_H}
+                    rx="14" fill="white" filter={filt}
+                    stroke={isSel?color:"#E4E7F0"} strokeWidth={isSel?2:1.5}/>
+                  {/* Top accent bar */}
+                  <rect x={node.x-NODE_W/2} y={node.y} width={NODE_W} height="4" rx="14" fill={color}/>
+                  <rect x={node.x-NODE_W/2} y={node.y+2} width={NODE_W} height="2" fill={color}/>
+                  {/* Icon circle */}
+                  <circle cx={node.x-NODE_W/2+28} cy={node.y+NODE_H/2}
+                    r="17" fill={`${color}14`} stroke={`${color}30`} strokeWidth="1.2"/>
+                  <text x={node.x-NODE_W/2+28} y={node.y+NODE_H/2+5}
+                    textAnchor="middle" fontSize="14" fontFamily="sans-serif">
+                    {node.icon||"📋"}
+                  </text>
+                  {/* Edit icon top-right */}
+                  <text x={node.x+NODE_W/2-22} y={node.y+18}
+                    textAnchor="middle" fontSize="11" opacity="0.45">✏️</text>
+                  {/* Step badge */}
+                  {processIdx>=0 && (
+                    <g>
+                      <rect x={node.x+NODE_W/2-34} y={node.y+8} width="28" height="17" rx="5" fill={color}/>
+                      <text x={node.x+NODE_W/2-20} y={node.y+20}
+                        textAnchor="middle" fontSize="9" fontWeight="800"
+                        fill="white" fontFamily="Plus Jakarta Sans,sans-serif">
+                        {String(processIdx+1).padStart(2,"0")}
+                      </text>
+                    </g>
+                  )}
+                  {/* Label — wrapped, max 2 lines */}
+                  {labelLines.map((l,li)=>(
+                    <text key={li}
+                      x={node.x-NODE_W/2+54}
+                      y={actor ? node.y+22+li*16 : node.y+NODE_H/2-4+li*16}
+                      fontSize="12" fontWeight="700" fill="#0F172A"
+                      fontFamily="Plus Jakarta Sans,sans-serif">
+                      {l}
+                    </text>
+                  ))}
+                  {/* Actor name — wrapped */}
+                  {actor && actorLines.map((l,li)=>(
+                    <text key={li}
+                      x={node.x-NODE_W/2+54}
+                      y={node.y+22+labelLines.length*16+li*13+4}
+                      fontSize="10" fontWeight="600" fill={color}
+                      fontFamily="Plus Jakarta Sans,sans-serif">
+                      {li===0?"💼 ":""}{l}
+                    </text>
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
         </div>
-
-        {node.description && <p style={{ fontSize:"12px", color:"#475569", lineHeight:1.6, marginBottom:"12px", fontStyle:"italic", padding:"8px 10px", background:"#F8F9FF", borderRadius:"6px" }}>{node.description}</p>}
-
-        {node.type === "decision" && (
-          <div style={{ display:"flex", gap:"8px", marginBottom:"12px" }}>
-            <div style={{ flex:1, background:"#ECFDF5", border:"1px solid #A7F3D0", borderRadius:"8px", padding:"8px", fontSize:"11px", color:"#065F46" }}>✅ YES<br/>{node.yes}</div>
-            <div style={{ flex:1, background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:"8px", padding:"8px", fontSize:"11px", color:"#991B1B" }}>❌ NO<br/>{node.no}</div>
-          </div>
-        )}
-
-        {node.steps?.length > 0 && (
-          <div style={{ marginBottom:"10px" }}>
-            <div style={{ fontSize:"9px", fontWeight:700, letterSpacing:"1.5px", color:"#94A3B8", textTransform:"uppercase", marginBottom:"7px" }}>Steps</div>
-            {node.steps.map((s,i) => (
-              <div key={i} style={{ display:"flex", gap:"7px", marginBottom:"6px" }}>
-                <span style={{ minWidth:"18px", height:"18px", borderRadius:"4px", background:`${color}15`, border:`1px solid ${color}28`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"8px", fontWeight:700, color, flexShrink:0 }}>{i+1}</span>
-                <span style={{ fontSize:"12px", color:"#475569", lineHeight:1.5 }}>{s}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {node.output && <div style={{ padding:"8px 10px", background:`${color}09`, border:`1px solid ${color}22`, borderRadius:"8px", fontSize:"12px", marginBottom:"8px" }}>✓ {node.output}</div>}
-        {node.note  && <div style={{ padding:"8px 10px", background:"#FFFBEB", border:"1px solid #FDE68A", borderRadius:"8px", fontSize:"11px", color:"#92400E" }}>⚠️ {node.note}</div>}
       </div>
-    </div>
-  );
-}
 
-// ── GLOBAL CSS ────────────────────────────────────────────────────────────────
-const GCSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-  :root { --bg:#F8F9FF; --border:#E4E7F0; --border2:#C7D2FE; --text:#0F172A; --text2:#475569; --text3:#94A3B8; --indigo:#4F46E5; --violet:#7C3AED; --surface:#F1F3FF; }
-  body { background:var(--bg); font-family:'Plus Jakarta Sans',system-ui,sans-serif; color:var(--text); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
-  ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:#C7D2FE;border-radius:3px}
-  .nav { height:62px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; background:rgba(255,255,255,0.92); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; animation:slideDown 0.5s ease both; }
-  .nav-logo { width:34px; height:34px; background:linear-gradient(135deg,var(--indigo),var(--violet)); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:17px; box-shadow:0 2px 10px rgba(99,102,241,0.4); }
-  .nav-name { font-size:17px; font-weight:800; letter-spacing:-0.3px; }
-  .nav-pill { background:linear-gradient(135deg,#EEF2FF,#F5F0FF); border:1px solid var(--border2); border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; color:#6366F1; }
-  .btn { font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; font-weight:600; border-radius:10px; padding:10px 22px; cursor:pointer; border:1px solid transparent; transition:all 0.2s cubic-bezier(0.34,1.3,0.64,1); }
-  .btn-primary { background:linear-gradient(135deg,var(--indigo),var(--violet)); color:white; box-shadow:0 2px 14px rgba(99,102,241,0.35); }
-  .btn-primary:hover { transform:translateY(-2px) scale(1.02); box-shadow:0 8px 24px rgba(99,102,241,0.45); }
-  .btn-primary:active { transform:translateY(0) scale(0.99); }
-  .btn-primary:disabled { background:#CBD5E1; box-shadow:none; cursor:not-allowed; transform:none; }
-  .btn-secondary { background:white; color:var(--text2); border-color:var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-  .btn-secondary:hover { border-color:#6366F1; color:var(--indigo); transform:translateY(-1px); }
-  .input { font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; color:var(--text); background:white; border:1.5px solid var(--border); border-radius:10px; padding:11px 14px; width:100%; outline:none; transition:all 0.2s; }
-  .input:focus { border-color:#6366F1; box-shadow:0 0 0 4px rgba(99,102,241,0.1); }
-  .input::placeholder { color:#C4C9D4; }
-  .card { background:white; border:1.5px solid var(--border); border-radius:16px; box-shadow:0 2px 8px rgba(99,102,241,0.06); }
-  .label { font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--text3); text-transform:uppercase; margin-bottom:10px; }
-  .orb { position:fixed; border-radius:50%; filter:blur(80px); pointer-events:none; z-index:0; animation:orbFloat linear infinite; }
-  .drop-zone { border:2px dashed var(--border2); border-radius:14px; padding:40px 32px; text-align:center; cursor:pointer; background:white; transition:all 0.25s cubic-bezier(0.34,1.2,0.64,1); }
-  .drop-zone:hover { border-color:#6366F1; transform:translateY(-2px); box-shadow:0 8px 24px rgba(99,102,241,0.1); }
-  .drop-zone.over { border-color:#6366F1; background:#EEF2FF; transform:scale(1.01); }
-  .exp-btn { font-family:'Plus Jakarta Sans',sans-serif; font-size:12px; font-weight:600; border-radius:8px; padding:7px 14px; cursor:pointer; border:1.5px solid var(--border); background:white; color:var(--text2); transition:all 0.2s cubic-bezier(0.34,1.3,0.64,1); display:flex; align-items:center; gap:5px; }
-  .exp-btn:hover { border-color:#6366F1; color:var(--indigo); background:#EEF2FF; transform:translateY(-2px) scale(1.04); }
-  .sidebar { width:260px; flex-shrink:0; border-right:1px solid var(--border); background:white; height:calc(100vh - 62px); overflow-y:auto; position:sticky; top:62px; }
-  .sidebar-item { padding:12px 16px; border-bottom:1px solid #F1F5F9; cursor:pointer; transition:all 0.15s; border-left:3px solid transparent; }
-  .sidebar-item:hover { background:var(--surface); border-left-color:#6366F1; }
-  .sidebar-item.active { background:#EEF2FF; border-left-color:var(--indigo); }
-  .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); padding:24px; position:relative; overflow:hidden; }
-  .login-card { width:100%; max-width:420px; background:white; border:1.5px solid var(--border); border-radius:20px; padding:36px; box-shadow:0 8px 40px rgba(99,102,241,0.1); position:relative; z-index:1; animation:cardPop 0.5s cubic-bezier(0.34,1.3,0.64,1) both; }
-  .input-label { font-size:12px; font-weight:700; color:var(--text2); margin-bottom:6px; display:block; }
-  .input-icon-wrap { position:relative; }
-  .input-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-size:16px; pointer-events:none; }
-  .input-with-icon { padding-left:40px !important; }
-  .tab { flex:1; padding:9px; font-size:13px; font-weight:600; border:none; background:transparent; cursor:pointer; border-radius:8px; transition:all 0.2s; color:var(--text3); }
-  .tab.active { background:white; color:var(--indigo); box-shadow:0 2px 8px rgba(99,102,241,0.12); }
-  @keyframes slideDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes cardPop { from{opacity:0;transform:scale(0.94) translateY(16px)} to{opacity:1;transform:scale(1) translateY(0)} }
-  @keyframes orbFloat { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(40px,-30px) scale(1.08)} 66%{transform:translate(-20px,20px) scale(0.95)} 100%{transform:translate(0,0) scale(1)} }
-  @keyframes spinSlow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
-  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-  @keyframes badgePop { from{opacity:0;transform:scale(0.85)} to{opacity:1;transform:scale(1)} }
-  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
-  @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes titleReveal { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes dotPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
-  .fade-up   { animation:fadeUp 0.45s ease both; }
-  .fade-up-1 { animation:fadeUp 0.45s 0.07s ease both; }
-  .fade-up-2 { animation:fadeUp 0.45s 0.14s ease both; }
-  .fade-up-3 { animation:fadeUp 0.45s 0.21s ease both; }
-  .scale-in  { animation:badgePop 0.35s ease both; }
-  .shake     { animation:shake 0.4s ease both; }
-`;
-
-// ── LOGIN ─────────────────────────────────────────────────────────────────────
-const LOGIN_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  .ls-root {
-    min-height: 100vh;
-    min-height: 100dvh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #060818;
-    font-family: 'DM Sans', sans-serif;
-    overflow: hidden;
-    position: relative;
-  }
-
-  /* ── CANVAS ── */
-  .ls-canvas {
-    position: fixed; inset: 0;
-    pointer-events: none; z-index: 0;
-  }
-
-  /* ── BLOBS ── */
-  .ls-blob {
-    position: fixed; border-radius: 50%;
-    filter: blur(120px); pointer-events: none;
-    z-index: 0; mix-blend-mode: screen;
-  }
-  .ls-blob-1 {
-    width: 55vw; height: 55vw; max-width: 700px; max-height: 700px;
-    background: radial-gradient(circle, rgba(79,70,229,0.28) 0%, transparent 70%);
-    top: -15%; left: -10%;
-    animation: blob1 14s ease-in-out infinite;
-  }
-  .ls-blob-2 {
-    width: 45vw; height: 45vw; max-width: 600px; max-height: 600px;
-    background: radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 70%);
-    bottom: -10%; right: -8%;
-    animation: blob2 18s ease-in-out infinite;
-  }
-  .ls-blob-3 {
-    width: 30vw; height: 30vw; max-width: 400px; max-height: 400px;
-    background: radial-gradient(circle, rgba(6,182,212,0.14) 0%, transparent 70%);
-    top: 35%; right: 15%;
-    animation: blob3 11s ease-in-out infinite;
-  }
-  .ls-blob-4 {
-    width: 25vw; height: 25vw; max-width: 320px; max-height: 320px;
-    background: radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%);
-    bottom: 20%; left: 10%;
-    animation: blob1 16s 3s ease-in-out infinite;
-  }
-
-  /* ── GRID ── */
-  .ls-grid {
-    position: fixed; inset: 0;
-    background-image:
-      linear-gradient(rgba(99,102,241,0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(99,102,241,0.05) 1px, transparent 1px);
-    background-size: 52px 52px;
-    pointer-events: none; z-index: 0;
-    animation: gridIn 2s ease both;
-  }
-
-  /* ── CARD ── */
-  .ls-card {
-    width: 100%; max-width: 460px;
-    position: relative; z-index: 10;
-    margin: 16px;
-    animation: cardIn 0.9s cubic-bezier(0.16,1,0.3,1) both;
-  }
-
-  .ls-card-inner {
-    background: rgba(10,13,30,0.82);
-    border: 1px solid rgba(99,102,241,0.22);
-    border-radius: 28px;
-    padding: 44px 40px 36px;
-    backdrop-filter: blur(48px);
-    -webkit-backdrop-filter: blur(48px);
-    box-shadow:
-      0 0 0 1px rgba(99,102,241,0.08),
-      0 32px 100px rgba(0,0,0,0.7),
-      0 0 80px rgba(99,102,241,0.06) inset;
-    position: relative; overflow: hidden;
-  }
-
-  /* Shimmer sweep */
-  .ls-card-inner::before {
-    content: '';
-    position: absolute; top: 0; left: -120%; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.9) 50%, transparent 100%);
-    animation: shimmer 3.5s ease-in-out infinite;
-  }
-
-  /* Top glow */
-  .ls-card-inner::after {
-    content: '';
-    position: absolute; top: -80px; left: 50%;
-    transform: translateX(-50%);
-    width: 260px; height: 160px;
-    background: radial-gradient(ellipse, rgba(99,102,241,0.1), transparent 70%);
-    pointer-events: none;
-  }
-
-  /* ── LOGO ── */
-  .ls-logo-wrap {
-    text-align: center; margin-bottom: 30px;
-    animation: logoIn 0.7s 0.2s cubic-bezier(0.34,1.6,0.64,1) both;
-  }
-  .ls-logo-icon {
-    width: 68px; height: 68px; margin: 0 auto 14px;
-    animation: hexIn 0.8s 0.25s cubic-bezier(0.34,1.5,0.64,1) both;
-  }
-  .ls-logo-icon svg {
-    width: 100%; height: 100%;
-    filter: drop-shadow(0 0 18px rgba(99,102,241,0.7)) drop-shadow(0 0 36px rgba(139,92,246,0.35));
-    animation: hexGlow 3s ease-in-out infinite;
-  }
-  .ls-logo-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 28px; font-weight: 800;
-    background: linear-gradient(135deg, #fff 20%, #A5B4FC 60%, #8B5CF6);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px; margin-bottom: 5px;
-  }
-  .ls-logo-sub {
-    font-size: 13px; color: rgba(148,163,184,0.6); letter-spacing: 0.3px;
-  }
-
-  /* ── TABS ── */
-  .ls-tabs {
-    display: flex;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px; padding: 4px;
-    margin-bottom: 28px;
-    animation: fadeUp 0.5s 0.3s ease both;
-  }
-  .ls-tab {
-    flex: 1; padding: 11px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13.5px; font-weight: 600;
-    border: none; background: transparent;
-    cursor: pointer; border-radius: 11px;
-    transition: all 0.3s cubic-bezier(0.34,1.3,0.64,1);
-    color: rgba(148,163,184,0.5);
-  }
-  .ls-tab.active {
-    background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.22));
-    color: #fff;
-    box-shadow: 0 2px 14px rgba(99,102,241,0.3), 0 0 0 1px rgba(99,102,241,0.35);
-  }
-  .ls-tab:not(.active):hover { color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.05); }
-
-  /* ── FIELD ── */
-  .ls-field { margin-bottom: 16px; animation: fadeUp 0.5s ease both; }
-  .ls-field-label {
-    display: block; font-size: 10.5px; font-weight: 700;
-    letter-spacing: 1.4px; text-transform: uppercase;
-    color: rgba(148,163,184,0.55); margin-bottom: 8px;
-  }
-  .ls-input-wrap { position: relative; }
-
-  .ls-input {
-    width: 100%;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px; font-weight: 400;
-    color: #fff;
-    background: rgba(255,255,255,0.05);
-    border: 1.5px solid rgba(255,255,255,0.1);
-    border-radius: 13px;
-    padding: 14px 46px 14px 46px;
-    outline: none;
-    transition: all 0.35s cubic-bezier(0.34,1.2,0.64,1);
-    box-sizing: border-box;
-  }
-  .ls-input::placeholder { color: rgba(148,163,184,0.3); }
-  .ls-input:focus {
-    border-color: rgba(99,102,241,0.65);
-    background: rgba(99,102,241,0.07);
-    box-shadow: 0 0 0 4px rgba(99,102,241,0.14), 0 0 24px rgba(99,102,241,0.08);
-    transform: translateY(-1px);
-  }
-
-  .ls-input-icon-left {
-    position: absolute; left: 15px; top: 50%;
-    transform: translateY(-50%); font-size: 15px;
-    pointer-events: none; transition: all 0.3s;
-    opacity: 0.45;
-  }
-  .ls-input-wrap:focus-within .ls-input-icon-left { opacity: 1; transform: translateY(-50%) scale(1.1); }
-
-  .ls-pw-eye {
-    position: absolute; right: 13px; top: 50%;
-    transform: translateY(-50%);
-    background: none; border: none; cursor: pointer;
-    font-size: 14px; color: rgba(148,163,184,0.35);
-    padding: 5px; border-radius: 7px; transition: all 0.2s;
-  }
-  .ls-pw-eye:hover { color: rgba(148,163,184,0.85); background: rgba(255,255,255,0.06); }
-
-  /* ── STRENGTH ── */
-  .ls-strength { margin-top: 9px; }
-  .ls-str-bars { display: flex; gap: 5px; margin-bottom: 5px; }
-  .ls-str-bar {
-    flex: 1; height: 3px; border-radius: 2px;
-    transition: all 0.45s cubic-bezier(0.34,1.3,0.64,1);
-  }
-  .ls-str-label { font-size: 11px; font-weight: 600; transition: color 0.3s; }
-
-  /* ── ERROR ── */
-  .ls-error {
-    display: flex; align-items: center; gap: 9px;
-    font-size: 12.5px; color: #FCA5A5;
-    padding: 11px 15px;
-    background: rgba(239,68,68,0.09);
-    border: 1px solid rgba(239,68,68,0.25);
-    border-radius: 12px; margin-bottom: 16px;
-    animation: errIn 0.4s cubic-bezier(0.34,1.5,0.64,1) both;
-  }
-
-  /* ── SUBMIT BUTTON ── */
-  .ls-btn {
-    width: 100%;
-    font-family: 'Syne', sans-serif;
-    font-size: 15px; font-weight: 700;
-    color: #fff; letter-spacing: 0.4px;
-    background: linear-gradient(135deg, #4338CA 0%, #6366F1 40%, #8B5CF6 70%, #7C3AED 100%);
-    background-size: 200% 200%;
-    border: none; border-radius: 14px;
-    padding: 15px;
-    cursor: pointer; position: relative; overflow: hidden;
-    transition: all 0.35s cubic-bezier(0.34,1.3,0.64,1);
-    box-shadow:
-      0 6px 28px rgba(99,102,241,0.45),
-      0 1px 0 rgba(255,255,255,0.12) inset,
-      0 -1px 0 rgba(0,0,0,0.3) inset;
-    margin-bottom: 22px;
-    animation: fadeUp 0.5s ease both;
-  }
-  .ls-btn::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 55%);
-    pointer-events: none;
-  }
-  .ls-btn:not(:disabled):hover {
-    transform: translateY(-3px) scale(1.015);
-    box-shadow: 0 14px 40px rgba(99,102,241,0.6), 0 1px 0 rgba(255,255,255,0.15) inset;
-    background-position: right center;
-  }
-  .ls-btn:not(:disabled):active { transform: translateY(0) scale(0.99); }
-  .ls-btn:disabled {
-    background: rgba(99,102,241,0.2); box-shadow: none;
-    cursor: not-allowed; transform: none; color: rgba(255,255,255,0.35);
-  }
-
-  /* ── SPINNER ── */
-  .ls-spin {
-    width: 16px; height: 16px;
-    border: 2px solid rgba(255,255,255,0.2);
-    border-top-color: white; border-radius: 50%;
-    display: inline-block; animation: spin 0.7s linear infinite;
-  }
-
-  /* ── DIVIDER ── */
-  .ls-div {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 18px;
-  }
-  .ls-div-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
-  .ls-div-text { font-size: 12px; color: rgba(148,163,184,0.4); font-weight: 500; white-space: nowrap; }
-
-  /* ── SWITCH LINK ── */
-  .ls-switch { text-align: center; font-size: 13px; color: rgba(148,163,184,0.45); }
-  .ls-switch-btn {
-    background: none; border: none; cursor: pointer;
-    font-family: 'DM Sans', sans-serif; font-size: 13px;
-    font-weight: 700; color: #818CF8; padding: 0 2px;
-    position: relative; transition: color 0.2s;
-  }
-  .ls-switch-btn::after {
-    content: ''; position: absolute;
-    bottom: -1px; left: 0; right: 0; height: 1px;
-    background: #818CF8; transform: scaleX(0);
-    transform-origin: left; transition: transform 0.3s;
-  }
-  .ls-switch-btn:hover { color: #A5B4FC; }
-  .ls-switch-btn:hover::after { transform: scaleX(1); }
-
-  /* ── FOOTER ── */
-  .ls-foot {
-    text-align: center; margin-top: 20px;
-    padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.06);
-    font-size: 11px; color: rgba(148,163,184,0.28);
-    letter-spacing: 0.3px;
-  }
-
-  /* ── TRUST BADGES ── */
-  .ls-trust {
-    display: flex; justify-content: center; gap: 16px;
-    margin-top: 14px; flex-wrap: wrap;
-  }
-  .ls-trust-item {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 10.5px; color: rgba(148,163,184,0.35);
-    font-weight: 500;
-  }
-  .ls-trust-dot {
-    width: 5px; height: 5px; border-radius: 50%;
-    animation: dotPulse 2s ease-in-out infinite;
-  }
-
-  /* ── SHAKE ── */
-  .ls-shake { animation: shakeX 0.4s cubic-bezier(0.36,0.07,0.19,0.97) both; }
-
-  /* ── MOBILE ── */
-  @media (max-width: 480px) {
-    .ls-card-inner { padding: 32px 24px 28px; border-radius: 24px; }
-    .ls-logo-title { font-size: 24px; }
-    .ls-logo-icon { width: 56px; height: 56px; }
-    .ls-btn { font-size: 14px; padding: 14px; }
-  }
-
-  /* ════ KEYFRAMES ════ */
-  @keyframes blob1 {
-    0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(60px,50px) scale(1.1)} 66%{transform:translate(-30px,70px) scale(0.92)}
-  }
-  @keyframes blob2 {
-    0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-50px,-60px) scale(1.12)} 66%{transform:translate(35px,-30px) scale(0.94)}
-  }
-  @keyframes blob3 {
-    0%,100%{transform:translate(0,0)} 50%{transform:translate(-60px,50px) scale(1.18)}
-  }
-  @keyframes gridIn { from{opacity:0} to{opacity:1} }
-  @keyframes cardIn {
-    from{opacity:0;transform:translateY(36px) scale(0.95)}
-    to{opacity:1;transform:translateY(0) scale(1)}
-  }
-  @keyframes logoIn {
-    from{opacity:0;transform:translateY(-16px)}
-    to{opacity:1;transform:translateY(0)}
-  }
-  @keyframes hexIn {
-    from{opacity:0;transform:scale(0.3) rotate(-180deg)}
-    to{opacity:1;transform:scale(1) rotate(0)}
-  }
-  @keyframes hexGlow {
-    0%,100%{filter:drop-shadow(0 0 18px rgba(99,102,241,0.7)) drop-shadow(0 0 36px rgba(139,92,246,0.35))}
-    50%{filter:drop-shadow(0 0 28px rgba(99,102,241,1)) drop-shadow(0 0 56px rgba(139,92,246,0.6))}
-  }
-  @keyframes shimmer { 0%{left:-120%} 100%{left:220%} }
-  @keyframes fadeUp {
-    from{opacity:0;transform:translateY(12px)}
-    to{opacity:1;transform:translateY(0)}
-  }
-  @keyframes errIn {
-    from{opacity:0;transform:scale(0.95) translateY(-4px)}
-    to{opacity:1;transform:scale(1) translateY(0)}
-  }
-  @keyframes shakeX {
-    0%,100%{transform:translateX(0)}
-    15%,45%,75%{transform:translateX(-7px)}
-    30%,60%,90%{transform:translateX(7px)}
-  }
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-  @keyframes dotPulse {
-    0%,100%{opacity:0.4;transform:scale(1)}
-    50%{opacity:1;transform:scale(1.4)}
-  }
-
-  /* Flowchart bg animations */
-  @keyframes fcDrift1 {
-    0%,100%{transform:translate(0,0)} 33%{transform:translate(10px,-18px)} 66%{transform:translate(-6px,12px)}
-  }
-  @keyframes fcDrift2 {
-    0%,100%{transform:translate(0,0)} 33%{transform:translate(-12px,16px)} 66%{transform:translate(8px,-10px)}
-  }
-  @keyframes fcDrift3 {
-    0%,100%{transform:translate(0,0)} 50%{transform:translate(6px,-14px)}
-  }
-  @keyframes badgeFloat {
-    0%,100%{transform:translateY(0);opacity:0.65} 50%{transform:translateY(-9px);opacity:0.95}
-  }
-  @keyframes badgeFloat2 {
-    0%,100%{transform:translateY(0);opacity:0.55} 50%{transform:translateY(9px);opacity:0.85}
-  }
-`;
-
-// ── PARTICLE CANVAS ───────────────────────────────────────────────────────────
-function ParticleCanvas() {
-  const ref = useRef(null);
-  useEffect(() => {
-    const c = ref.current; if (!c) return;
-    const ctx = c.getContext('2d');
-    let id;
-    const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight; };
-    resize(); window.addEventListener('resize', resize);
-    const pts = Array.from({length:70}, () => ({
-      x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight,
-      vx:(Math.random()-0.5)*0.35, vy:(Math.random()-0.5)*0.35,
-      r: Math.random()*1.4+0.3, a: Math.random()*0.35+0.08
-    }));
-    const draw = () => {
-      ctx.clearRect(0,0,c.width,c.height);
-      pts.forEach(p => {
-        p.x+=p.vx; p.y+=p.vy;
-        if(p.x<0)p.x=c.width; if(p.x>c.width)p.x=0;
-        if(p.y<0)p.y=c.height; if(p.y>c.height)p.y=0;
-      });
-      for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++) {
-        const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y;
-        const d=Math.sqrt(dx*dx+dy*dy);
-        if(d<130) {
-          ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
-          ctx.strokeStyle=`rgba(99,102,241,${(1-d/130)*0.11})`;ctx.lineWidth=0.7;ctx.stroke();
-        }
-      }
-      pts.forEach(p => {
-        ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-        ctx.fillStyle=`rgba(139,92,246,${p.a})`;ctx.fill();
-      });
-      id = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', resize); };
-  }, []);
-  return <canvas ref={ref} className="ls-canvas"/>;
-}
-
-// ── BACKGROUND FLOWCHARTS (full screen, both sides + center) ─────────────────
-function FloatingNodes() {
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setActive(v => (v+1)%6), 1300);
-    return () => clearInterval(t);
-  }, []);
-
-  const NW=110, NH=40, DH=48;
-
-  const renderChart = (nodes, edges, ox, oy, activeIdx, opacity, drift) => {
-    const cx=n=>ox+n.x, cy=n=>oy+n.y;
-    const bot=n=>n.type==="diamond"?cy(n)+DH/2:cy(n)+NH;
-    const top=n=>n.type==="diamond"?cy(n)-DH/2:cy(n);
-    return (
-      <g opacity={opacity} style={{animation:`${drift} ease-in-out infinite`}}>
-        {edges.map((e,i)=>{
-          const fn=nodes[e.f],tn=nodes[e.t];
-          const x1=cx(fn),y1=bot(fn),x2=cx(tn),y2=top(tn);
-          const isAct=i===activeIdx, col=isAct?fn.color:"rgba(99,102,241,0.12)";
-          const straight=Math.abs(x1-x2)<8;
-          const path=straight
-            ?`M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}`
-            :`M${x1},${y1} V${(y1+y2)/2} H${x2} V${y2}`;
-          return (
-            <g key={i}>
-              <path d={path} fill="none" stroke={col}
-                strokeWidth={isAct?1.8:0.8} strokeDasharray={isAct?"none":"3 5"}
-                style={{transition:"all 0.5s",filter:isAct?`drop-shadow(0 0 4px ${fn.color})`:"none"}}/>
-              {isAct&&<circle r="3.5" fill={fn.color} opacity="0.95"
-                style={{filter:`drop-shadow(0 0 6px ${fn.color})`}}>
-                <animateMotion dur="1.3s" repeatCount="indefinite" path={path}/>
-              </circle>}
-              {e.label&&<text x={(x1+x2)/2+(x2>x1?9:-9)} y={(y1+y2)/2-2}
-                fill={isAct?fn.color:"rgba(148,163,184,0.2)"} fontSize="7" fontWeight="800"
-                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>{e.label}</text>}
-            </g>
-          );
-        })}
-        {nodes.map((n,i)=>{
-          const isAct=edges.some((e,ei)=>ei===activeIdx&&(e.f===i||e.t===i));
-          const x=cx(n),y=cy(n),col=n.color;
-          const glow=isAct?`drop-shadow(0 0 9px ${col}77)`:"none";
-          if(n.type==="oval") return (
-            <g key={i}>
-              <ellipse cx={x} cy={y+NH/2} rx={NW/2} ry={NH/2-2}
-                fill={isAct?`${col}1E`:"rgba(255,255,255,0.022)"}
-                stroke={isAct?col:`${col}33`} strokeWidth={isAct?1.5:0.7}
-                style={{filter:glow,transition:"all 0.5s"}}/>
-              <text x={x} y={y+NH/2+4} textAnchor="middle" fontSize="8" fontWeight="700"
-                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif"
-                style={{transition:"all 0.5s"}}>{n.label}</text>
-            </g>
-          );
-          if(n.type==="diamond"){const hw=NW/2-12,hh=DH/2; return (
-            <g key={i}>
-              <polygon points={`${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}`}
-                fill={isAct?`${col}1E`:"rgba(255,255,255,0.022)"}
-                stroke={isAct?col:`${col}33`} strokeWidth={isAct?1.5:0.7}
-                style={{filter:glow,transition:"all 0.5s"}}/>
-              <text x={x} y={y+4} textAnchor="middle" fontSize="7.5" fontWeight="700"
-                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif"
-                style={{transition:"all 0.5s"}}>{n.label}</text>
-            </g>
-          );}
-          return (
-            <g key={i}>
-              <rect x={x-NW/2} y={y} width={NW} height={NH} rx="7"
-                fill={isAct?`${col}18`:"rgba(255,255,255,0.022)"}
-                stroke={isAct?col:`${col}28`} strokeWidth={isAct?1.5:0.7}
-                style={{filter:glow,transition:"all 0.5s"}}/>
-              <rect x={x-NW/2} y={y} width={NW} height={isAct?3:2} rx="7"
-                fill={isAct?col:`${col}28`} style={{transition:"all 0.5s"}}/>
-              <rect x={x-NW/2} y={y+1} width={NW} height={isAct?2:1}
-                fill={isAct?col:`${col}28`} style={{transition:"all 0.5s"}}/>
-              <text x={x} y={y+NH/2+4} textAnchor="middle" fontSize="8" fontWeight="600"
-                fill={isAct?"rgba(255,255,255,0.82)":`rgba(148,163,184,0.25)`}
-                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>{n.label}</text>
-            </g>
-          );
-        })}
-      </g>
-    );
-  };
-
-  // LEFT chart — vertical document pipeline
-  const LN=[
-    {x:70,y:30, type:"oval",    label:"📄 Upload",    color:"#10B981"},
-    {x:70,y:118,type:"rect",    label:"🤖 AI Reads",  color:"#6366F1"},
-    {x:70,y:206,type:"diamond", label:"Valid?",        color:"#F59E0B"},
-    {x:70,y:304,type:"rect",    label:"🔀 Map Steps", color:"#8B5CF6"},
-    {x:70,y:392,type:"rect",    label:"👥 Actors",    color:"#6366F1"},
-    {x:70,y:480,type:"oval",    label:"📊 Export",    color:"#EF4444"},
-  ];
-  const LE=[{f:0,t:1},{f:1,t:2},{f:2,t:3,label:"YES"},{f:2,t:5,label:"NO"},{f:3,t:4},{f:4,t:5}];
-
-  // RIGHT chart — branching decision flow
-  const RN=[
-    {x:60,y:40, type:"oval",    label:"▶ Start",    color:"#10B981"},
-    {x:60,y:128,type:"rect",    label:"🔍 Analyze", color:"#6366F1"},
-    {x:60,y:216,type:"diamond", label:"Decision?",  color:"#F59E0B"},
-    {x:-35,y:314,type:"rect",   label:"📋 Path A",  color:"#8B5CF6"},
-    {x:155,y:314,type:"rect",   label:"📝 Path B",  color:"#06B6D4"},
-    {x:60,y:412,type:"oval",    label:"✓ Done",     color:"#EF4444"},
-  ];
-  const RE=[{f:0,t:1},{f:1,t:2},{f:2,t:3,label:"YES"},{f:2,t:4,label:"NO"},{f:3,t:5},{f:4,t:5}];
-
-  // TOP chart — horizontal process strip across the top
-  const TN=[
-    {x:0,  y:30, type:"oval",    label:"Start",      color:"#10B981"},
-    {x:140,y:30, type:"rect",    label:"📥 Input",   color:"#6366F1"},
-    {x:280,y:30, type:"diamond", label:"Check?",     color:"#F59E0B"},
-    {x:420,y:30, type:"rect",    label:"⚙️ Process", color:"#8B5CF6"},
-    {x:560,y:30, type:"rect",    label:"✅ Validate", color:"#06B6D4"},
-    {x:700,y:30, type:"oval",    label:"End",        color:"#EF4444"},
-  ];
-  const TE=[{f:0,t:1},{f:1,t:2},{f:2,t:3,label:"YES"},{f:2,t:5,label:"NO"},{f:3,t:4},{f:4,t:5}];
-
-  // BOTTOM chart — horizontal process strip across the bottom
-  const BN=[
-    {x:0,  y:30, type:"oval",    label:"📄 Doc",     color:"#10B981"},
-    {x:140,y:30, type:"rect",    label:"🤖 Extract", color:"#6366F1"},
-    {x:280,y:30, type:"rect",    label:"🗺 Map",     color:"#8B5CF6"},
-    {x:420,y:30, type:"diamond", label:"Review?",    color:"#F59E0B"},
-    {x:560,y:30, type:"rect",    label:"📊 Chart",   color:"#06B6D4"},
-    {x:700,y:30, type:"oval",    label:"🚀 Export",  color:"#EF4444"},
-  ];
-  const BE=[{f:0,t:1},{f:1,t:2},{f:2,t:3},{f:3,t:4,label:"YES"},{f:3,t:5,label:"NO"},{f:4,t:5}];
-
-  // horizontal edge renderer for top/bottom strips
-  const renderHorizChart = (nodes, edges, svgW, svgH, activeIdx, opacity, drift) => {
-    const cy=n=>svgH/2, cx=n=>n.x+NW/2;
-    const right=n=>n.type==="diamond"?cx(n)+DH/2:cx(n)+NW/2;
-    const left=n=>n.type==="diamond"?cx(n)-DH/2:cx(n)-NW/2;
-    return (
-      <g opacity={opacity} style={{animation:`${drift} ease-in-out infinite`}}>
-        {edges.map((e,i)=>{
-          const fn=nodes[e.f],tn=nodes[e.t];
-          const x1=right(fn),y1=cy(fn),x2=left(tn),y2=cy(tn);
-          const isAct=i===activeIdx, col=isAct?fn.color:"rgba(99,102,241,0.1)";
-          const path=`M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`;
-          return (
-            <g key={i}>
-              <path d={path} fill="none" stroke={col}
-                strokeWidth={isAct?1.8:0.7} strokeDasharray={isAct?"none":"3 5"}
-                style={{transition:"all 0.5s",filter:isAct?`drop-shadow(0 0 4px ${fn.color})`:"none"}}/>
-              {isAct&&<circle r="3" fill={fn.color} opacity="0.9"
-                style={{filter:`drop-shadow(0 0 5px ${fn.color})`}}>
-                <animateMotion dur="1.3s" repeatCount="indefinite" path={path}/>
-              </circle>}
-              {e.label&&<text x={(x1+x2)/2} y={y1-6}
-                fill={isAct?fn.color:"rgba(148,163,184,0.2)"} fontSize="7" fontWeight="800"
-                textAnchor="middle" fontFamily="DM Sans,sans-serif">{e.label}</text>}
-            </g>
-          );
-        })}
-        {nodes.map((n,i)=>{
-          const isAct=edges.some((e,ei)=>ei===activeIdx&&(e.f===i||e.t===i));
-          const x=cx(n),y=svgH/2,col=n.color;
-          const glow=isAct?`drop-shadow(0 0 8px ${col}77)`:"none";
-          if(n.type==="oval") return (
-            <g key={i}>
-              <ellipse cx={x} cy={y} rx={NW/2} ry={NH/2-2}
-                fill={isAct?`${col}1E`:"rgba(255,255,255,0.02)"}
-                stroke={isAct?col:`${col}30`} strokeWidth={isAct?1.5:0.7}
-                style={{filter:glow,transition:"all 0.5s"}}/>
-              <text x={x} y={y+4} textAnchor="middle" fontSize="8" fontWeight="700"
-                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif">{n.label}</text>
-            </g>
-          );
-          if(n.type==="diamond"){const hw=NW/2-10,hh=NH/2; return (
-            <g key={i}>
-              <polygon points={`${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}`}
-                fill={isAct?`${col}1E`:"rgba(255,255,255,0.02)"}
-                stroke={isAct?col:`${col}30`} strokeWidth={isAct?1.5:0.7}
-                style={{filter:glow,transition:"all 0.5s"}}/>
-              <text x={x} y={y+4} textAnchor="middle" fontSize="7.5" fontWeight="700"
-                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif">{n.label}</text>
-            </g>
-          );}
-          return (
-            <g key={i}>
-              <rect x={x-NW/2} y={y-NH/2} width={NW} height={NH} rx="7"
-                fill={isAct?`${col}18`:"rgba(255,255,255,0.02)"}
-                stroke={isAct?col:`${col}25`} strokeWidth={isAct?1.5:0.7}
-                style={{filter:glow,transition:"all 0.5s"}}/>
-              <rect x={x-NW/2} y={y-NH/2} width={NW} height={isAct?3:2} rx="7"
-                fill={isAct?col:`${col}25`} style={{transition:"all 0.5s"}}/>
-              <text x={x} y={y+4} textAnchor="middle" fontSize="8" fontWeight="600"
-                fill={isAct?"rgba(255,255,255,0.8)":`rgba(148,163,184,0.22)`}
-                fontFamily="DM Sans,sans-serif">{n.label}</text>
-            </g>
-          );
-        })}
-      </g>
-    );
-  };
-
-  return (
-    <svg style={{position:"fixed",inset:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:1,overflow:"visible"}}>
-
-      {/* TOP horizontal strip */}
-      <svg x="0" y="0" width="100%" height="80" overflow="visible">
-        {renderHorizChart(TN, TE, 800, 80, active%TE.length, 0.45, "fcDrift3 18s ease-in-out infinite")}
-      </svg>
-
-      {/* BOTTOM horizontal strip */}
-      <svg x="0" y="calc(100% - 80px)" width="100%" height="80" overflow="visible">
-        {renderHorizChart(BN, BE, 800, 80, active%BE.length, 0.4, "fcDrift3 22s 2s ease-in-out infinite")}
-      </svg>
-
-      {/* LEFT vertical chart */}
-      <svg x="0" y="0" width="160" height="100%" overflow="visible">
-        {renderChart(LN, LE, 25, 60, active%LE.length, 0.52, "fcDrift1 20s ease-in-out infinite")}
-      </svg>
-
-      {/* RIGHT vertical chart — use a foreignObject trick: translate to right edge */}
-      <g transform="translate(-160,0)" style={{transform:"translateX(calc(100vw - 160px))"}}>
-        <svg x="0" y="0" width="160" height="100%" overflow="visible">
-          {renderChart(RN, RE, 25, 80, active%RE.length, 0.44, "fcDrift2 24s ease-in-out infinite")}
-        </svg>
-      </g>
-
-      {/* Purpose badges */}
-      {[
-        {x:"50%",y:90,  text:"📄 → 🔀  Document to Flowchart",  color:"#6366F1", anim:"badgeFloat  7s ease-in-out infinite",    tx:"-50%"},
-        {x:"50%",y:-14, text:"🤖  AI-Powered Extraction",        color:"#8B5CF6", anim:"badgeFloat2 8s 0.7s ease-in-out infinite",tx:"-50%"},
-        {x:4,    y:"50%",text:"👥 Actor Mapping",                 color:"#10B981", anim:"badgeFloat  9s 1s ease-in-out infinite",  tx:"0",   vert:true},
-      ].map((b,i)=>{
-        const bw=200, bh=22;
-        return (
-          <g key={i} style={{animation:b.anim}}>
-            {!b.vert ? (
-              <>
-                <rect x={`calc(${b.x} - ${bw/2}px)`} y={b.y} width={bw} height={bh} rx={11}
-                  fill="rgba(8,10,24,0.75)" stroke={`${b.color}40`} strokeWidth="1"/>
-                <text x={b.x} y={b.y+15} textAnchor="middle" fontSize="9" fontWeight="700"
-                  fill={b.color} fontFamily="DM Sans,sans-serif">{b.text}</text>
-              </>
-            ) : (
-              <>
-                <rect x={b.x} y={`calc(${b.y} - 11px)`} width={bw} height={bh} rx={11}
-                  fill="rgba(8,10,24,0.75)" stroke={`${b.color}40`} strokeWidth="1"/>
-                <text x={b.x+bw/2} y={`calc(${b.y} + 4px)`} textAnchor="middle" fontSize="9"
-                  fontWeight="700" fill={b.color} fontFamily="DM Sans,sans-serif">{b.text}</text>
-              </>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ── PASSWORD STRENGTH ─────────────────────────────────────────────────────────
-function PwStrength({ password }) {
-  const score = [password.length>=6, /[A-Z]/.test(password), /[0-9]/.test(password)].filter(Boolean).length;
-  const cols = ["#EF4444","#F59E0B","#10B981"];
-  const labs = ["Weak","Fair","Strong"];
-  if (!password) return null;
-  return (
-    <div className="ls-strength">
-      <div className="ls-str-bars">
-        {[0,1,2].map(i=>(
-          <div key={i} className="ls-str-bar"
-            style={{background:i<score?cols[score-1]:"rgba(255,255,255,0.07)",boxShadow:i<score?`0 0 7px ${cols[score-1]}66`:"none"}}/>
-        ))}
-      </div>
-      <span className="ls-str-label" style={{color:score>0?cols[score-1]:"rgba(148,163,184,0.4)"}}>
-        {score>0?labs[score-1]:""}{score===3?" ✓":""}
-      </span>
-    </div>
-  );
-}
-
-// ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }) {
-  const existingUser = LS.get(KEYS.USER);
-  const [tab, setTab]       = useState(existingUser ? "login" : "register");
-  const [username, setUser] = useState("");
-  const [password, setPw]   = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [error, setError]   = useState("");
-  const [loading, setLoad]  = useState(false);
-  const [shake, setShake]   = useState(false);
-  const [focused, setFocus] = useState(null);
-
-  const doShake = () => { setShake(true); setTimeout(()=>setShake(false), 450); };
-  const switchTab = (t) => { setTab(t); setError(""); setUser(""); setPw(""); };
-
-  const handleRegister = () => {
-    if (!username.trim()||username.trim().length<3) { setError("Username must be at least 3 characters."); doShake(); return; }
-    if (!password||password.length<6)               { setError("Password must be at least 6 characters."); doShake(); return; }
-    if (LS.get(KEYS.USER))                           { setError("Account exists. Please sign in."); switchTab("login"); return; }
-    const user = { username:username.trim(), passwordHash:hashPassword(password) };
-    LS.set(KEYS.USER, user);
-    LS.set(KEYS.SESSION, { username:user.username, loggedInAt:new Date().toISOString() });
-    onLogin(user.username, false);
-  };
-
-  const handleLogin = async () => {
-    if (!username.trim()||!password) { setError("Please fill in all fields."); doShake(); return; }
-    setLoad(true); setError("");
-    await new Promise(r=>setTimeout(r,700));
-    const user = LS.get(KEYS.USER);
-    if (!user)                                                            { setError("No account found. Create one first."); switchTab("register"); setLoad(false); return; }
-    if (user.username.toLowerCase()!==username.trim().toLowerCase())      { setError("Incorrect username."); doShake(); setLoad(false); return; }
-    if (user.passwordHash!==hashPassword(password))                       { setError("Incorrect password."); doShake(); setLoad(false); return; }
-    LS.set(KEYS.SESSION, { username:user.username, loggedInAt:new Date().toISOString() });
-    setLoad(false);
-    onLogin(user.username, !!LS.get(KEYS.APIKEY));
-  };
-
-  const fd = (i) => ({ animationDelay:`${0.32+i*0.07}s` });
-
-  return (
-    <div className="ls-root">
-      <style>{LOGIN_CSS}</style>
-      <ParticleCanvas/>
-      <div className="ls-grid"/>
-      <div className="ls-blob ls-blob-1"/>
-      <div className="ls-blob ls-blob-2"/>
-      <div className="ls-blob ls-blob-3"/>
-      <div className="ls-blob ls-blob-4"/>
-      <FloatingNodes/>
-
-      <div className="ls-card">
-        <div className="ls-card-inner">
-
-          {/* Logo */}
-          <div className="ls-logo-wrap">
-            <div className="ls-logo-icon">
-              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="hg1" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366F1"/>
-                    <stop offset="50%" stopColor="#8B5CF6"/>
-                    <stop offset="100%" stopColor="#06B6D4"/>
-                  </linearGradient>
-                  <linearGradient id="hg2" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.28)"/>
-                    <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
-                  </linearGradient>
-                </defs>
-                <polygon points="32,3 57,17.5 57,46.5 32,61 7,46.5 7,17.5" fill="url(#hg1)" stroke="rgba(139,92,246,0.5)" strokeWidth="1"/>
-                <polygon points="32,3 57,17.5 57,46.5 32,61 7,46.5 7,17.5" fill="url(#hg2)"/>
-                <circle cx="32" cy="32" r="10" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                <circle cx="32" cy="32" r="4" fill="white" opacity="0.9"/>
-              </svg>
+      {/* ── DETAIL PANEL ── */}
+      {selectedNode && selectedNode.type==="process" && (
+        <div style={{ background:"white", borderTop:"1.5px solid var(--border)",
+          padding:"16px 22px", flexShrink:0, maxHeight:"210px", overflowY:"auto",
+          animation:"slideUp 0.22s ease both" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"12px" }}>
+            <div style={{ width:"38px",height:"38px",borderRadius:"9px",
+              background:`${getColor(selectedNode)}12`,border:`1.5px solid ${getColor(selectedNode)}28`,
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:"19px" }}>
+              {selectedNode.icon||"📋"}
             </div>
-            <div className="ls-logo-title">FlowScribe</div>
-            <div className="ls-logo-sub">AI-powered flowchart generator</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:"14px",fontWeight:700 }}>{selectedNode.label}</div>
+              {selActor&&<div style={{ fontSize:"11px",color:getColor(selectedNode),fontWeight:600 }}>💼 {selActor.name}</div>}
+            </div>
+            <button onClick={()=>handleEdit(selectedNode)}
+              style={{ padding:"6px 14px",borderRadius:"8px",border:"1.5px solid #6366F1",
+                background:"#EEF2FF",color:"#4F46E5",fontSize:"12px",fontWeight:700,cursor:"pointer" }}>
+              ✏️ Edit
+            </button>
+            <button onClick={()=>setSelected(null)}
+              style={{ background:"#F1F5F9",border:"none",cursor:"pointer",
+                borderRadius:"8px",width:"32px",height:"32px",fontSize:"18px",color:"#64748B" }}>×</button>
           </div>
-
-          {/* Tabs */}
-          <div className="ls-tabs">
-            <button className={`ls-tab${tab==="login"?" active":""}`} onClick={()=>switchTab("login")}>Sign In</button>
-            <button className={`ls-tab${tab==="register"?" active":""}`} onClick={()=>switchTab("register")}>Create Account</button>
-          </div>
-
-          {/* Form */}
-          <div className={shake?"ls-shake":""}>
-
-            {/* Username */}
-            <div className="ls-field" style={fd(0)}>
-              <label className="ls-field-label">Username</label>
-              <div className="ls-input-wrap">
-                <span className="ls-input-icon-left">{focused==="u"?"✨":"👤"}</span>
-                <input className="ls-input" type="text" value={username}
-                  onChange={e=>{setUser(e.target.value);setError("");}}
-                  placeholder="Enter your username"
-                  onFocus={()=>setFocus("u")} onBlur={()=>setFocus(null)}
-                  onKeyDown={e=>e.key==="Enter"&&(tab==="login"?handleLogin():handleRegister())}
-                  autoFocus/>
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="ls-field" style={fd(1)}>
-              <label className="ls-field-label">Password</label>
-              <div className="ls-input-wrap">
-                <span className="ls-input-icon-left">{focused==="p"?"✨":"🔒"}</span>
-                <input className="ls-input" type={showPw?"text":"password"} value={password}
-                  onChange={e=>{setPw(e.target.value);setError("");}}
-                  placeholder={tab==="register"?"Min 6 characters":"Your password"}
-                  onFocus={()=>setFocus("p")} onBlur={()=>setFocus(null)}
-                  onKeyDown={e=>e.key==="Enter"&&(tab==="login"?handleLogin():handleRegister())}
-                  style={{paddingRight:"46px"}}/>
-                <button className="ls-pw-eye" onClick={()=>setShowPw(v=>!v)}>{showPw?"🙈":"👁️"}</button>
-              </div>
-              {tab==="register"&&<PwStrength password={password}/>}
-            </div>
-
-            {/* Error */}
-            {error&&(
-              <div className="ls-error">
-                <span style={{fontSize:"16px"}}>⚠️</span>
-                <span>{error}</span>
+          {selectedNode.description&&<p style={{ fontSize:"12px",color:"var(--text2)",fontStyle:"italic",marginBottom:"10px",lineHeight:1.6 }}>{selectedNode.description}</p>}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px" }}>
+            {selectedNode.steps?.length>0&&(
+              <div>
+                <div style={{ fontSize:"10px",fontWeight:700,letterSpacing:"1.3px",color:"var(--text3)",textTransform:"uppercase",marginBottom:"7px" }}>Steps</div>
+                {selectedNode.steps.map((s,i)=>(
+                  <div key={i} style={{ display:"flex",gap:"7px",marginBottom:"5px",alignItems:"flex-start" }}>
+                    <span style={{ minWidth:"18px",height:"18px",borderRadius:"4px",
+                      background:`${getColor(selectedNode)}14`,border:`1px solid ${getColor(selectedNode)}28`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:"9px",fontWeight:700,color:getColor(selectedNode),flexShrink:0 }}>{i+1}</span>
+                    <span style={{ fontSize:"12px",color:"var(--text2)",lineHeight:1.4 }}>{s}</span>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Button */}
-            <button className="ls-btn" onClick={tab==="login"?handleLogin:handleRegister}
-              disabled={loading} style={fd(2)}>
-              {loading
-                ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"10px"}}>
-                    <span className="ls-spin"/>Authenticating…
-                  </span>
-                : tab==="login" ? "Sign In →" : "Create Account →"}
-            </button>
-          </div>
-
-          {/* Switch */}
-          <div className="ls-div">
-            <div className="ls-div-line"/>
-            <span className="ls-div-text">{tab==="login"?"New here?":"Have an account?"}</span>
-            <div className="ls-div-line"/>
-          </div>
-          <div className="ls-switch">
-            <button className="ls-switch-btn" onClick={()=>switchTab(tab==="login"?"register":"login")}>
-              {tab==="login"?"Create a free account":"Sign in instead"}
-            </button>
-          </div>
-
-          {/* Trust badges */}
-          <div className="ls-trust" style={{marginTop:"18px"}}>
-            <div className="ls-trust-item">
-              <div className="ls-trust-dot" style={{background:"#10B981",animationDelay:"0s"}}/>
-              Local storage only
-            </div>
-            <div className="ls-trust-item">
-              <div className="ls-trust-dot" style={{background:"#6366F1",animationDelay:"0.6s"}}/>
-              Never shared
-            </div>
-            <div className="ls-trust-item">
-              <div className="ls-trust-dot" style={{background:"#8B5CF6",animationDelay:"1.2s"}}/>
-              Free to use
-            </div>
-          </div>
-
-          <div className="ls-foot">🔒 Credentials stored locally · Never shared with anyone</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-
-function ApiKeySetup({ username, onDone }) {
-  const [key, setKey] = useState("");
-  const [show, setShow] = useState(false);
-  const [error, setError] = useState("");
-  const [testing, setTesting] = useState(false);
-  const handleSave = async () => {
-    if (!key.startsWith("sk-ant-")) { setError("Key must start with sk-ant-"); return; }
-    setTesting(true); setError("");
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body: JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:10,messages:[{role:"user",content:"hi"}]})
-      });
-      if (!r.ok) { const e=await r.json(); throw new Error(e?.error?.message||"Invalid key"); }
-      LS.set(KEYS.APIKEY, key); onDone(key);
-    } catch(e) { setError(e.message||"Could not verify."); } finally { setTesting(false); }
-  };
-  return (
-    <div className="login-wrap">
-      <style>{GCSS}</style>
-      <div className="orb" style={{width:500,height:500,background:"radial-gradient(circle,rgba(99,102,241,0.12),transparent)",top:"-100px",right:"-100px",animationDuration:"18s"}}/>
-      <div className="login-card">
-        <div style={{textAlign:"center",marginBottom:"24px"}}>
-          <div style={{fontSize:"40px",marginBottom:"12px",animation:"float 3s ease-in-out infinite"}}>🔑</div>
-          <h2 style={{fontSize:"22px",fontWeight:800,marginBottom:"6px"}}>Welcome, {username}! 👋</h2>
-          <p style={{fontSize:"13px",color:"var(--text3)",lineHeight:1.6}}>Connect your Anthropic API key.<br/><b style={{color:"var(--text2)"}}>You only need to do this once.</b></p>
-        </div>
-        <div className="label" style={{marginBottom:"8px"}}>Anthropic API Key</div>
-        <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
-          <input className="input" type={show?"text":"password"} value={key} onChange={e=>{setKey(e.target.value);setError("");}} placeholder="sk-ant-api03-…" onKeyDown={e=>e.key==="Enter"&&handleSave()} style={{flex:1}}/>
-          <button className="btn btn-secondary" onClick={()=>setShow(v=>!v)} style={{padding:"10px 14px",flexShrink:0,fontSize:"13px"}}>{show?"Hide":"Show"}</button>
-        </div>
-        {error&&<div style={{fontSize:"13px",color:"#DC2626",marginBottom:"14px",padding:"10px 14px",background:"#FEF2F2",borderRadius:"8px",border:"1px solid #FECACA"}}>⚠️ {error}</div>}
-        <button className="btn btn-primary" onClick={handleSave} disabled={!key||testing} style={{width:"100%",fontSize:"15px",padding:"13px",marginBottom:"20px"}}>
-          {testing?<span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"8px"}}><span style={{width:"14px",height:"14px",border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"white",borderRadius:"50%",display:"inline-block",animation:"spinSlow 0.7s linear infinite"}}/>Verifying…</span>:"Save & Continue →"}
-        </button>
-        <div style={{padding:"14px",background:"var(--surface)",borderRadius:"10px",border:"1px solid var(--border)"}}>
-          <div className="label" style={{marginBottom:"10px"}}>How to get your key</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
-            {[["1","console.anthropic.com","🌐"],["2","Sign up / Log in","👤"],["3","API Keys → Create","🔐"],["4","Paste above","✅"]].map(([n,t,ic])=>(
-              <div key={n} style={{padding:"8px 10px",background:"white",borderRadius:"8px",border:"1px solid var(--border)"}}>
-                <div style={{fontSize:"10px",fontWeight:700,color:"#6366F1",marginBottom:"2px"}}>STEP {n}</div>
-                <div style={{fontSize:"12px",color:"var(--text2)"}}>{ic} {t}</div>
+            {selectedNode.output&&(
+              <div>
+                <div style={{ fontSize:"10px",fontWeight:700,letterSpacing:"1.3px",color:"var(--text3)",textTransform:"uppercase",marginBottom:"7px" }}>Output</div>
+                <div style={{ padding:"8px 12px",background:`${getColor(selectedNode)}09`,
+                  border:`1.5px solid ${getColor(selectedNode)}20`,borderRadius:"8px",
+                  fontSize:"12px",lineHeight:1.5 }}>✓ {selectedNode.output}</div>
+                {selectedNode.note&&<div style={{ marginTop:"7px",padding:"7px 10px",
+                  background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:"7px",
+                  fontSize:"11px",color:"#92400E" }}>⚠️ {selectedNode.note}</div>}
               </div>
-            ))}
+            )}
           </div>
-          <div style={{marginTop:"10px",padding:"8px 12px",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:"8px",fontSize:"12px",color:"#065F46",fontWeight:500}}>💚 ~$0.001 per analysis</div>
         </div>
-      </div>
+      )}
+
+      {/* Edit Modal */}
+      {editing && (
+        <EditModal
+          node={editing}
+          actors={data.actors}
+          onSave={handleSave}
+          onClose={()=>setEditing(null)}
+        />
+      )}
     </div>
   );
 }
+
+
 
 // ── HISTORY SIDEBAR ───────────────────────────────────────────────────────────
 function HistorySidebar({ history, currentId, onSelect, onDelete, onNew }) {
@@ -1492,80 +735,57 @@ function ExportBar({ data }) {
 }
 
 // ── RESULT VIEW ───────────────────────────────────────────────────────────────
-function ResultView({ data }) {
-  const [activeNode, setActiveNode] = useState(null);
-  const activeNodeData = data.nodes?.find(n => n.id === activeNode);
-  const processCount = data.nodes?.filter(n=>n.type==="process").length||0;
-  const decisionCount = data.nodes?.filter(n=>n.type==="decision").length||0;
-
+function ResultView({ data, onDataChange }) {
   return (
-    <div style={{flex:1,overflowY:"auto",padding:"24px 24px 80px",position:"relative"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {/* Header */}
-      <div style={{marginBottom:"20px"}}>
-        <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:"20px",padding:"5px 14px",fontSize:"12px",fontWeight:700,color:"#065F46",marginBottom:"12px",animation:"badgePop 0.4s ease both"}}>✅ Flowchart Generated</div>
-        <h1 className="fade-up-1" style={{fontSize:"clamp(18px,2.5vw,26px)",fontWeight:800,letterSpacing:"-0.5px",marginBottom:"8px"}}>{data.title}</h1>
-        <p className="fade-up-2" style={{fontSize:"14px",color:"var(--text2)",lineHeight:1.65,marginBottom:"14px",maxWidth:"680px"}}>{data.summary}</p>
-
-        {/* Actors */}
-        <div className="fade-up-2" style={{display:"flex",gap:"7px",flexWrap:"wrap",marginBottom:"14px"}}>
-          {(data.actors||[]).map((a,i)=>(
-            <div key={a.id} style={{padding:"4px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:600,border:`1.5px solid ${COLORS[i%COLORS.length]}33`,background:`${COLORS[i%COLORS.length]}0D`,color:COLORS[i%COLORS.length]}}>{a.emoji} {a.name}</div>
-          ))}
-        </div>
-
-        {/* Stats */}
-        <div className="fade-up-3" style={{display:"inline-flex",gap:"20px",background:"white",border:"1.5px solid var(--border)",borderRadius:"12px",padding:"10px 18px",marginBottom:"16px"}}>
-          {[{n:processCount,l:"Steps",c:"#6366F1"},{n:decisionCount,l:"Decisions",c:"#F59E0B"},{n:data.actors?.length||0,l:"Actors",c:"#8B5CF6"},{n:data.keyInsights?.length||0,l:"Insights",c:"#06B6D4"}].map(({n,l,c})=>(
-            <div key={l} style={{textAlign:"center"}}>
-              <div style={{fontSize:"20px",fontWeight:800,color:c,lineHeight:1}}>{n}</div>
-              <div style={{fontSize:"10px",color:"var(--text3)",fontWeight:600,marginTop:"3px"}}>{l}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="fade-up-3"><div className="label" style={{marginBottom:"8px"}}>Export</div><ExportBar data={data}/></div>
-      </div>
-
-      {/* Legend */}
-      <div style={{display:"flex",alignItems:"center",gap:"16px",marginBottom:"16px",flexWrap:"wrap"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"var(--text3)",fontWeight:600}}>
-          <div style={{width:"28px",height:"16px",background:"#4F46E5",borderRadius:"8px"}}/>START / END
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"var(--text3)",fontWeight:600}}>
-          <div style={{width:"24px",height:"16px",background:"white",border:"2px solid #6366F1",borderRadius:"4px"}}/>PROCESS
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"var(--text3)",fontWeight:600}}>
-          <div style={{width:"20px",height:"16px",background:"#FFFBEB",border:"2px solid #FDE68A",transform:"rotate(45deg)",flexShrink:0}}/>DECISION
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"var(--text3)",fontWeight:600}}>
-          <div style={{width:"24px",height:"2px",background:"#10B981"}}/>YES
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"11px",color:"var(--text3)",fontWeight:600}}>
-          <div style={{width:"24px",height:"2px",background:"#EF4444",borderTop:"2px dashed #EF4444"}}/>NO
-        </div>
-        <div style={{marginLeft:"auto",fontSize:"11px",color:"var(--text3)"}}>👆 Click any node for details</div>
-      </div>
-
-      {/* THE REAL FLOWCHART */}
-      <div className="card" style={{padding:"8px",marginBottom:"24px",overflow:"hidden",animation:"badgePop 0.5s ease both"}}>
-        <FlowchartSVG data={data} onNodeClick={setActiveNode} activeNode={activeNode}/>
-      </div>
-
-      {/* Insights */}
-      {data.keyInsights?.length>0&&(
-        <div className="card" style={{padding:"18px 20px",maxWidth:"680px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"12px"}}>
-            <span style={{fontSize:"16px"}}>💡</span>
-            <div className="label" style={{margin:0}}>Key Insights</div>
+      <div style={{padding:"14px 22px",borderBottom:"1px solid var(--border)",background:"white",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:"14px",flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"#ECFDF5",border:"1px solid #A7F3D0",borderRadius:"20px",padding:"3px 12px",fontSize:"11px",fontWeight:700,color:"#065F46",marginBottom:"6px"}}>✅ Generated</div>
+            <h1 style={{fontSize:"clamp(15px,2vw,20px)",fontWeight:800,letterSpacing:"-0.3px",marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{data.title}</h1>
+            <p style={{fontSize:"12px",color:"var(--text2)",lineHeight:1.5,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{data.summary}</p>
           </div>
-          {data.keyInsights.map((ins,i)=>(
-            <div key={i} style={{fontSize:"13px",color:"var(--text2)",marginBottom:"8px",padding:"8px 12px",background:`${COLORS[i%COLORS.length]}05`,borderLeft:`3px solid ${COLORS[i%COLORS.length]}44`,borderRadius:"0 6px 6px 0",lineHeight:1.6,transition:"transform 0.15s",cursor:"default"}} onMouseEnter={e=>e.currentTarget.style.transform="translateX(4px)"} onMouseLeave={e=>e.currentTarget.style.transform=""}>{ins}</div>
-          ))}
+          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",alignItems:"center"}}>
+            {(data.actors||[]).map((a,i)=>(
+              <div key={a.id} style={{padding:"3px 10px",borderRadius:"20px",fontSize:"11px",fontWeight:600,border:`1.5px solid ${COLORS[i%COLORS.length]}33`,background:`${COLORS[i%COLORS.length]}0D`,color:COLORS[i%COLORS.length]}}>{a.name}</div>
+            ))}
+          </div>
+        </div>
+        <div style={{marginTop:"10px",display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:"14px",background:"var(--surface)",borderRadius:"10px",padding:"7px 14px",border:"1px solid var(--border)"}}>
+            {[
+              {n:data.nodes?.filter(n=>n.type==="process").length||0,l:"Steps",c:"#6366F1"},
+              {n:data.nodes?.filter(n=>n.type==="decision").length||0,l:"Decisions",c:"#F59E0B"},
+              {n:data.actors?.length||0,l:"Actors",c:"#8B5CF6"},
+              {n:data.keyInsights?.length||0,l:"Insights",c:"#06B6D4"},
+            ].map(({n,l,c})=>(
+              <div key={l} style={{textAlign:"center"}}>
+                <div style={{fontSize:"17px",fontWeight:800,color:c,lineHeight:1}}>{n}</div>
+                <div style={{fontSize:"10px",color:"var(--text3)",fontWeight:600,marginTop:"2px"}}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <ExportBar data={data}/>
+        </div>
+      </div>
+
+      {/* SVG Canvas — fills remaining space */}
+      <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        <SvgFlowchart data={data} onDataChange={onDataChange}/>
+      </div>
+
+      {/* Insights strip */}
+      {data.keyInsights?.length>0&&(
+        <div style={{padding:"10px 20px",borderTop:"1px solid var(--border)",background:"white",flexShrink:0}}>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{fontSize:"11px",fontWeight:700,color:"var(--text3)",letterSpacing:"1px"}}>💡 INSIGHTS:</span>
+            {data.keyInsights.map((ins,i)=>(
+              <div key={i} style={{fontSize:"12px",color:"var(--text2)",padding:"4px 10px",background:`${COLORS[i%COLORS.length]}07`,borderLeft:`2px solid ${COLORS[i%COLORS.length]}44`,borderRadius:"0 6px 6px 0"}}>{ins}</div>
+            ))}
+          </div>
         </div>
       )}
-
-      {/* Node detail popup */}
-      {activeNode && <NodeDetail node={activeNodeData} actors={data.actors} onClose={()=>setActiveNode(null)}/>}
     </div>
   );
 }
@@ -1771,7 +991,7 @@ export default function App() {
             </div>
           )}
 
-          {stage==="result"&&currentData&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}><ResultView data={currentData}/></div>}
+          {stage==="result"&&currentData&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}><ResultView data={currentData} onDataChange={(updated)=>{setCurrentData(updated);const newH=history.map(h=>h.id===currentId?{...h,data:updated}:h);setHistory(newH);LS.set(KEYS.HISTORY,newH);}}/></div>}
 
           {stage==="error"&&(
             <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 24px"}}>
