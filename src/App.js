@@ -514,149 +514,133 @@ const GCSS = `
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 const LOGIN_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   .ls-root {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #080B18;
+    background: #060818;
     font-family: 'DM Sans', sans-serif;
     overflow: hidden;
     position: relative;
   }
 
-  /* ── CANVAS BACKGROUND ── */
+  /* ── CANVAS ── */
   .ls-canvas {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
   }
 
-  /* ── MORPHING BLOBS ── */
+  /* ── BLOBS ── */
   .ls-blob {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(100px);
-    pointer-events: none;
-    z-index: 0;
-    mix-blend-mode: screen;
+    position: fixed; border-radius: 50%;
+    filter: blur(120px); pointer-events: none;
+    z-index: 0; mix-blend-mode: screen;
   }
   .ls-blob-1 {
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%);
-    top: -200px; left: -100px;
-    animation: blobMove1 12s ease-in-out infinite;
+    width: 55vw; height: 55vw; max-width: 700px; max-height: 700px;
+    background: radial-gradient(circle, rgba(79,70,229,0.28) 0%, transparent 70%);
+    top: -15%; left: -10%;
+    animation: blob1 14s ease-in-out infinite;
   }
   .ls-blob-2 {
-    width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%);
-    bottom: -150px; right: -100px;
-    animation: blobMove2 15s ease-in-out infinite;
+    width: 45vw; height: 45vw; max-width: 600px; max-height: 600px;
+    background: radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 70%);
+    bottom: -10%; right: -8%;
+    animation: blob2 18s ease-in-out infinite;
   }
   .ls-blob-3 {
-    width: 350px; height: 350px;
-    background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);
-    top: 40%; left: 30%;
-    animation: blobMove3 10s ease-in-out infinite;
+    width: 30vw; height: 30vw; max-width: 400px; max-height: 400px;
+    background: radial-gradient(circle, rgba(6,182,212,0.14) 0%, transparent 70%);
+    top: 35%; right: 15%;
+    animation: blob3 11s ease-in-out infinite;
+  }
+  .ls-blob-4 {
+    width: 25vw; height: 25vw; max-width: 320px; max-height: 320px;
+    background: radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%);
+    bottom: 20%; left: 10%;
+    animation: blob1 16s 3s ease-in-out infinite;
   }
 
   /* ── GRID ── */
   .ls-grid {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background-image:
-      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    z-index: 0;
-    animation: gridFade 3s ease both;
+      linear-gradient(rgba(99,102,241,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.05) 1px, transparent 1px);
+    background-size: 52px 52px;
+    pointer-events: none; z-index: 0;
+    animation: gridIn 2s ease both;
   }
 
   /* ── CARD ── */
   .ls-card {
-    width: 100%;
-    max-width: 440px;
-    position: relative;
-    z-index: 10;
-    margin: 24px;
-    animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    width: 100%; max-width: 460px;
+    position: relative; z-index: 10;
+    margin: 16px;
+    animation: cardIn 0.9s cubic-bezier(0.16,1,0.3,1) both;
   }
 
   .ls-card-inner {
-    background: rgba(15, 18, 35, 0.85);
-    border: 1px solid rgba(99,102,241,0.2);
-    border-radius: 24px;
-    padding: 40px;
-    backdrop-filter: blur(40px);
+    background: rgba(10,13,30,0.82);
+    border: 1px solid rgba(99,102,241,0.22);
+    border-radius: 28px;
+    padding: 44px 40px 36px;
+    backdrop-filter: blur(48px);
+    -webkit-backdrop-filter: blur(48px);
     box-shadow:
-      0 0 0 1px rgba(99,102,241,0.1),
-      0 24px 80px rgba(0,0,0,0.6),
-      0 0 120px rgba(99,102,241,0.08) inset;
-    position: relative;
-    overflow: hidden;
+      0 0 0 1px rgba(99,102,241,0.08),
+      0 32px 100px rgba(0,0,0,0.7),
+      0 0 80px rgba(99,102,241,0.06) inset;
+    position: relative; overflow: hidden;
   }
 
-  /* Shimmer top edge */
+  /* Shimmer sweep */
   .ls-card-inner::before {
     content: '';
-    position: absolute;
-    top: 0; left: -100%; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(99,102,241,0.8), transparent);
-    animation: shimmerLine 3s ease-in-out infinite;
+    position: absolute; top: 0; left: -120%; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.9) 50%, transparent 100%);
+    animation: shimmer 3.5s ease-in-out infinite;
   }
 
-  /* Inner glow */
+  /* Top glow */
   .ls-card-inner::after {
     content: '';
-    position: absolute;
-    top: -60px; left: 50%;
+    position: absolute; top: -80px; left: 50%;
     transform: translateX(-50%);
-    width: 200px; height: 120px;
-    background: radial-gradient(ellipse, rgba(99,102,241,0.12), transparent);
+    width: 260px; height: 160px;
+    background: radial-gradient(ellipse, rgba(99,102,241,0.1), transparent 70%);
     pointer-events: none;
   }
 
   /* ── LOGO ── */
   .ls-logo-wrap {
-    text-align: center;
-    margin-bottom: 32px;
-    animation: logoReveal 0.7s 0.2s cubic-bezier(0.34, 1.6, 0.64, 1) both;
+    text-align: center; margin-bottom: 30px;
+    animation: logoIn 0.7s 0.2s cubic-bezier(0.34,1.6,0.64,1) both;
   }
-
-  .ls-logo-hex {
-    width: 64px; height: 64px;
-    margin: 0 auto 16px;
-    position: relative;
-    animation: hexSpin 0.8s 0.3s cubic-bezier(0.34, 1.6, 0.64, 1) both;
+  .ls-logo-icon {
+    width: 68px; height: 68px; margin: 0 auto 14px;
+    animation: hexIn 0.8s 0.25s cubic-bezier(0.34,1.5,0.64,1) both;
   }
-
-  .ls-logo-hex svg {
+  .ls-logo-icon svg {
     width: 100%; height: 100%;
-    filter: drop-shadow(0 0 20px rgba(99,102,241,0.6)) drop-shadow(0 0 40px rgba(139,92,246,0.3));
-    animation: hexPulse 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 18px rgba(99,102,241,0.7)) drop-shadow(0 0 36px rgba(139,92,246,0.35));
+    animation: hexGlow 3s ease-in-out infinite;
   }
-
   .ls-logo-title {
     font-family: 'Syne', sans-serif;
-    font-size: 26px;
-    font-weight: 800;
-    color: #fff;
-    letter-spacing: -0.5px;
-    margin-bottom: 4px;
-    background: linear-gradient(135deg, #fff 30%, rgba(139,92,246,0.9));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 28px; font-weight: 800;
+    background: linear-gradient(135deg, #fff 20%, #A5B4FC 60%, #8B5CF6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px; margin-bottom: 5px;
   }
-
   .ls-logo-sub {
-    font-size: 13px;
-    color: rgba(148, 163, 184, 0.7);
-    letter-spacing: 0.3px;
+    font-size: 13px; color: rgba(148,163,184,0.6); letter-spacing: 0.3px;
   }
 
   /* ── TABS ── */
@@ -664,72 +648,34 @@ const LOGIN_CSS = `
     display: flex;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: 14px; padding: 4px;
     margin-bottom: 28px;
-    animation: fadeSlideUp 0.5s 0.35s ease both;
+    animation: fadeUp 0.5s 0.3s ease both;
   }
-
   .ls-tab {
-    flex: 1; padding: 10px;
+    flex: 1; padding: 11px;
     font-family: 'DM Sans', sans-serif;
-    font-size: 13px; font-weight: 600;
+    font-size: 13.5px; font-weight: 600;
     border: none; background: transparent;
-    cursor: pointer; border-radius: 9px;
-    transition: all 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
-    color: rgba(148,163,184,0.6);
-    position: relative;
-    overflow: hidden;
+    cursor: pointer; border-radius: 11px;
+    transition: all 0.3s cubic-bezier(0.34,1.3,0.64,1);
+    color: rgba(148,163,184,0.5);
   }
-
-  .ls-tab::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-
   .ls-tab.active {
-    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2));
+    background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.22));
     color: #fff;
-    box-shadow: 0 2px 12px rgba(99,102,241,0.25), 0 0 0 1px rgba(99,102,241,0.3);
+    box-shadow: 0 2px 14px rgba(99,102,241,0.3), 0 0 0 1px rgba(99,102,241,0.35);
   }
+  .ls-tab:not(.active):hover { color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.05); }
 
-  .ls-tab:not(.active):hover {
-    color: rgba(255,255,255,0.7);
-    background: rgba(255,255,255,0.05);
-  }
-
-  /* ── INPUT GROUP ── */
-  .ls-field {
-    margin-bottom: 18px;
-    animation: fadeSlideUp 0.5s ease both;
-  }
-
+  /* ── FIELD ── */
+  .ls-field { margin-bottom: 16px; animation: fadeUp 0.5s ease both; }
   .ls-field-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    color: rgba(148,163,184,0.6);
-    margin-bottom: 8px;
+    display: block; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 1.4px; text-transform: uppercase;
+    color: rgba(148,163,184,0.55); margin-bottom: 8px;
   }
-
-  .ls-input-wrap {
-    position: relative;
-  }
-
-  .ls-input-icon {
-    position: absolute;
-    left: 14px; top: 50%;
-    transform: translateY(-50%);
-    font-size: 15px;
-    opacity: 0.5;
-    transition: opacity 0.3s, transform 0.3s;
-    pointer-events: none;
-  }
+  .ls-input-wrap { position: relative; }
 
   .ls-input {
     width: 100%;
@@ -737,493 +683,345 @@ const LOGIN_CSS = `
     font-size: 14px; font-weight: 400;
     color: #fff;
     background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 13px 14px 13px 42px;
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 13px;
+    padding: 14px 46px 14px 46px;
     outline: none;
-    transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+    transition: all 0.35s cubic-bezier(0.34,1.2,0.64,1);
     box-sizing: border-box;
   }
-
-  .ls-input::placeholder { color: rgba(148,163,184,0.35); }
-
+  .ls-input::placeholder { color: rgba(148,163,184,0.3); }
   .ls-input:focus {
-    border-color: rgba(99,102,241,0.6);
-    background: rgba(99,102,241,0.06);
-    box-shadow:
-      0 0 0 3px rgba(99,102,241,0.15),
-      0 0 20px rgba(99,102,241,0.1);
+    border-color: rgba(99,102,241,0.65);
+    background: rgba(99,102,241,0.07);
+    box-shadow: 0 0 0 4px rgba(99,102,241,0.14), 0 0 24px rgba(99,102,241,0.08);
     transform: translateY(-1px);
   }
 
-  .ls-input:focus + .ls-input-icon,
-  .ls-input-wrap:focus-within .ls-input-icon {
-    opacity: 1;
-    transform: translateY(-50%) scale(1.1);
+  .ls-input-icon-left {
+    position: absolute; left: 15px; top: 50%;
+    transform: translateY(-50%); font-size: 15px;
+    pointer-events: none; transition: all 0.3s;
+    opacity: 0.45;
   }
+  .ls-input-wrap:focus-within .ls-input-icon-left { opacity: 1; transform: translateY(-50%) scale(1.1); }
 
-  .ls-pw-toggle {
-    position: absolute;
-    right: 12px; top: 50%;
+  .ls-pw-eye {
+    position: absolute; right: 13px; top: 50%;
     transform: translateY(-50%);
-    background: none; border: none;
-    cursor: pointer; font-size: 14px;
-    color: rgba(148,163,184,0.4);
-    padding: 4px;
-    transition: all 0.2s;
-    border-radius: 6px;
+    background: none; border: none; cursor: pointer;
+    font-size: 14px; color: rgba(148,163,184,0.35);
+    padding: 5px; border-radius: 7px; transition: all 0.2s;
   }
-  .ls-pw-toggle:hover {
-    color: rgba(148,163,184,0.9);
-    background: rgba(255,255,255,0.06);
-  }
+  .ls-pw-eye:hover { color: rgba(148,163,184,0.85); background: rgba(255,255,255,0.06); }
 
-  /* ── STRENGTH BAR ── */
-  .ls-strength {
-    margin-top: 8px;
-    animation: fadeIn 0.3s ease both;
-  }
-  .ls-strength-bars {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 5px;
-  }
-  .ls-strength-bar {
+  /* ── STRENGTH ── */
+  .ls-strength { margin-top: 9px; }
+  .ls-str-bars { display: flex; gap: 5px; margin-bottom: 5px; }
+  .ls-str-bar {
     flex: 1; height: 3px; border-radius: 2px;
-    transition: all 0.4s cubic-bezier(0.34,1.3,0.64,1);
+    transition: all 0.45s cubic-bezier(0.34,1.3,0.64,1);
   }
-  .ls-strength-label {
-    font-size: 11px; font-weight: 600;
-    transition: color 0.3s;
-  }
+  .ls-str-label { font-size: 11px; font-weight: 600; transition: color 0.3s; }
 
   /* ── ERROR ── */
   .ls-error {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px; color: #FCA5A5;
-    padding: 10px 14px;
-    background: rgba(239,68,68,0.08);
-    border: 1px solid rgba(239,68,68,0.2);
-    border-radius: 10px;
-    margin-bottom: 16px;
-    animation: errorPop 0.4s cubic-bezier(0.34,1.6,0.64,1) both;
+    display: flex; align-items: center; gap: 9px;
+    font-size: 12.5px; color: #FCA5A5;
+    padding: 11px 15px;
+    background: rgba(239,68,68,0.09);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 12px; margin-bottom: 16px;
+    animation: errIn 0.4s cubic-bezier(0.34,1.5,0.64,1) both;
   }
 
-  /* ── PRIMARY BUTTON ── */
+  /* ── SUBMIT BUTTON ── */
   .ls-btn {
     width: 100%;
     font-family: 'Syne', sans-serif;
     font-size: 15px; font-weight: 700;
-    color: #fff;
-    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #6366F1 100%);
+    color: #fff; letter-spacing: 0.4px;
+    background: linear-gradient(135deg, #4338CA 0%, #6366F1 40%, #8B5CF6 70%, #7C3AED 100%);
     background-size: 200% 200%;
-    border: none; border-radius: 12px;
-    padding: 14px;
-    cursor: pointer;
-    position: relative; overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.34,1.3,0.64,1);
-    box-shadow: 0 4px 24px rgba(99,102,241,0.4), 0 1px 0 rgba(255,255,255,0.1) inset;
-    letter-spacing: 0.3px;
-    margin-bottom: 20px;
-    animation: btnReveal 0.5s ease both;
+    border: none; border-radius: 14px;
+    padding: 15px;
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: all 0.35s cubic-bezier(0.34,1.3,0.64,1);
+    box-shadow:
+      0 6px 28px rgba(99,102,241,0.45),
+      0 1px 0 rgba(255,255,255,0.12) inset,
+      0 -1px 0 rgba(0,0,0,0.3) inset;
+    margin-bottom: 22px;
+    animation: fadeUp 0.5s ease both;
   }
-
   .ls-btn::before {
     content: '';
     position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 55%);
     pointer-events: none;
   }
-
-  /* Ripple effect */
-  .ls-btn::after {
-    content: '';
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%,-50%) scale(0);
-    width: 300px; height: 300px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 50%;
-    transition: transform 0.5s, opacity 0.5s;
-    opacity: 0;
-  }
-
-  .ls-btn:hover {
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: 0 12px 40px rgba(99,102,241,0.55), 0 1px 0 rgba(255,255,255,0.15) inset;
+  .ls-btn:not(:disabled):hover {
+    transform: translateY(-3px) scale(1.015);
+    box-shadow: 0 14px 40px rgba(99,102,241,0.6), 0 1px 0 rgba(255,255,255,0.15) inset;
     background-position: right center;
   }
-
-  .ls-btn:active {
-    transform: translateY(0) scale(0.99);
-  }
-
-  .ls-btn:active::after {
-    transform: translate(-50%,-50%) scale(1);
-    opacity: 0;
-    transition: 0s;
-  }
-
+  .ls-btn:not(:disabled):active { transform: translateY(0) scale(0.99); }
   .ls-btn:disabled {
-    background: rgba(99,102,241,0.25);
-    box-shadow: none;
-    cursor: not-allowed;
-    transform: none;
-    color: rgba(255,255,255,0.4);
+    background: rgba(99,102,241,0.2); box-shadow: none;
+    cursor: not-allowed; transform: none; color: rgba(255,255,255,0.35);
   }
 
   /* ── SPINNER ── */
-  .ls-spinner {
+  .ls-spin {
     width: 16px; height: 16px;
     border: 2px solid rgba(255,255,255,0.2);
-    border-top-color: white;
-    border-radius: 50%;
-    display: inline-block;
-    animation: spin 0.7s linear infinite;
+    border-top-color: white; border-radius: 50%;
+    display: inline-block; animation: spin 0.7s linear infinite;
   }
 
   /* ── DIVIDER ── */
-  .ls-divider {
+  .ls-div {
     display: flex; align-items: center; gap: 12px;
-    margin-bottom: 20px;
-    animation: fadeSlideUp 0.5s 0.5s ease both;
+    margin-bottom: 18px;
   }
-  .ls-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
-  .ls-divider-text { font-size: 12px; color: rgba(148,163,184,0.4); font-weight: 500; white-space: nowrap; }
+  .ls-div-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+  .ls-div-text { font-size: 12px; color: rgba(148,163,184,0.4); font-weight: 500; white-space: nowrap; }
 
   /* ── SWITCH LINK ── */
-  .ls-switch {
-    text-align: center;
-    font-size: 13px;
-    color: rgba(148,163,184,0.5);
-    animation: fadeSlideUp 0.5s 0.55s ease both;
-  }
-
+  .ls-switch { text-align: center; font-size: 13px; color: rgba(148,163,184,0.45); }
   .ls-switch-btn {
-    background: none; border: none;
-    color: #818CF8; font-weight: 700;
-    cursor: pointer; font-size: 13px;
-    font-family: 'DM Sans', sans-serif;
-    padding: 0 2px;
-    position: relative;
-    transition: color 0.2s;
+    background: none; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 700; color: #818CF8; padding: 0 2px;
+    position: relative; transition: color 0.2s;
   }
-
   .ls-switch-btn::after {
-    content: '';
-    position: absolute;
-    bottom: -1px; left: 0; right: 0;
-    height: 1px;
-    background: #818CF8;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s;
+    content: ''; position: absolute;
+    bottom: -1px; left: 0; right: 0; height: 1px;
+    background: #818CF8; transform: scaleX(0);
+    transform-origin: left; transition: transform 0.3s;
   }
-
   .ls-switch-btn:hover { color: #A5B4FC; }
   .ls-switch-btn:hover::after { transform: scaleX(1); }
 
   /* ── FOOTER ── */
-  .ls-footer {
-    text-align: center;
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-    font-size: 11px;
-    color: rgba(148,163,184,0.3);
+  .ls-foot {
+    text-align: center; margin-top: 20px;
+    padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 11px; color: rgba(148,163,184,0.28);
     letter-spacing: 0.3px;
-    animation: fadeIn 1s 0.8s ease both;
   }
 
-  /* ── FLOATING NODES (decorative) ── */
-  .ls-float-node {
-    position: fixed;
-    border-radius: 10px;
-    border: 1px solid;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 600;
-    pointer-events: none;
-    z-index: 1;
-    backdrop-filter: blur(8px);
+  /* ── TRUST BADGES ── */
+  .ls-trust {
+    display: flex; justify-content: center; gap: 16px;
+    margin-top: 14px; flex-wrap: wrap;
+  }
+  .ls-trust-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10.5px; color: rgba(148,163,184,0.35);
+    font-weight: 500;
+  }
+  .ls-trust-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    animation: dotPulse 2s ease-in-out infinite;
   }
 
   /* ── SHAKE ── */
   .ls-shake { animation: shakeX 0.4s cubic-bezier(0.36,0.07,0.19,0.97) both; }
 
-  /* ══════════ KEYFRAMES ══════════ */
-  @keyframes blobMove1 {
-    0%,100% { transform: translate(0,0) scale(1); }
-    33%     { transform: translate(80px, 60px) scale(1.1); }
-    66%     { transform: translate(-40px, 80px) scale(0.9); }
+  /* ── MOBILE ── */
+  @media (max-width: 480px) {
+    .ls-card-inner { padding: 32px 24px 28px; border-radius: 24px; }
+    .ls-logo-title { font-size: 24px; }
+    .ls-logo-icon { width: 56px; height: 56px; }
+    .ls-btn { font-size: 14px; padding: 14px; }
   }
-  @keyframes blobMove2 {
-    0%,100% { transform: translate(0,0) scale(1); }
-    33%     { transform: translate(-60px, -80px) scale(1.15); }
-    66%     { transform: translate(40px, -40px) scale(0.95); }
+
+  /* ════ KEYFRAMES ════ */
+  @keyframes blob1 {
+    0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(60px,50px) scale(1.1)} 66%{transform:translate(-30px,70px) scale(0.92)}
   }
-  @keyframes blobMove3 {
-    0%,100% { transform: translate(0,0) scale(1); }
-    50%     { transform: translate(-80px, 60px) scale(1.2); }
+  @keyframes blob2 {
+    0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-50px,-60px) scale(1.12)} 66%{transform:translate(35px,-30px) scale(0.94)}
   }
-  @keyframes gridFade {
-    from { opacity: 0; } to { opacity: 1; }
+  @keyframes blob3 {
+    0%,100%{transform:translate(0,0)} 50%{transform:translate(-60px,50px) scale(1.18)}
   }
-  @keyframes cardEntrance {
-    from { opacity: 0; transform: translateY(40px) scale(0.96); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+  @keyframes gridIn { from{opacity:0} to{opacity:1} }
+  @keyframes cardIn {
+    from{opacity:0;transform:translateY(36px) scale(0.95)}
+    to{opacity:1;transform:translateY(0) scale(1)}
   }
-  @keyframes logoReveal {
-    from { opacity: 0; transform: translateY(-20px); }
-    to   { opacity: 1; transform: translateY(0); }
+  @keyframes logoIn {
+    from{opacity:0;transform:translateY(-16px)}
+    to{opacity:1;transform:translateY(0)}
   }
-  @keyframes hexSpin {
-    from { opacity: 0; transform: scale(0.3) rotate(-180deg); }
-    to   { opacity: 1; transform: scale(1) rotate(0deg); }
+  @keyframes hexIn {
+    from{opacity:0;transform:scale(0.3) rotate(-180deg)}
+    to{opacity:1;transform:scale(1) rotate(0)}
   }
-  @keyframes hexPulse {
-    0%,100% { filter: drop-shadow(0 0 20px rgba(99,102,241,0.6)) drop-shadow(0 0 40px rgba(139,92,246,0.3)); }
-    50%     { filter: drop-shadow(0 0 30px rgba(99,102,241,0.9)) drop-shadow(0 0 60px rgba(139,92,246,0.5)); }
+  @keyframes hexGlow {
+    0%,100%{filter:drop-shadow(0 0 18px rgba(99,102,241,0.7)) drop-shadow(0 0 36px rgba(139,92,246,0.35))}
+    50%{filter:drop-shadow(0 0 28px rgba(99,102,241,1)) drop-shadow(0 0 56px rgba(139,92,246,0.6))}
   }
-  @keyframes shimmerLine {
-    0%   { left: -100%; }
-    100% { left: 200%; }
+  @keyframes shimmer { 0%{left:-120%} 100%{left:220%} }
+  @keyframes fadeUp {
+    from{opacity:0;transform:translateY(12px)}
+    to{opacity:1;transform:translateY(0)}
   }
-  @keyframes fadeSlideUp {
-    from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; } to { opacity: 1; }
-  }
-  @keyframes btnReveal {
-    from { opacity: 0; transform: translateY(10px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  @keyframes errorPop {
-    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+  @keyframes errIn {
+    from{opacity:0;transform:scale(0.95) translateY(-4px)}
+    to{opacity:1;transform:scale(1) translateY(0)}
   }
   @keyframes shakeX {
-    0%,100% { transform: translateX(0); }
-    15%,45%,75% { transform: translateX(-8px); }
-    30%,60%,90% { transform: translateX(8px); }
+    0%,100%{transform:translateX(0)}
+    15%,45%,75%{transform:translateX(-7px)}
+    30%,60%,90%{transform:translateX(7px)}
   }
-  @keyframes spin {
-    from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes dotPulse {
+    0%,100%{opacity:0.4;transform:scale(1)}
+    50%{opacity:1;transform:scale(1.4)}
   }
-  @keyframes nodeFloat1 {
-    0%,100% { transform: translateY(0px) rotate(0deg); opacity: 0.4; }
-    50%     { transform: translateY(-20px) rotate(3deg); opacity: 0.7; }
+
+  /* Flowchart bg animations */
+  @keyframes fcDrift1 {
+    0%,100%{transform:translate(0,0)} 33%{transform:translate(10px,-18px)} 66%{transform:translate(-6px,12px)}
   }
-  @keyframes nodeFloat2 {
-    0%,100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
-    50%     { transform: translateY(16px) rotate(-2deg); opacity: 0.6; }
+  @keyframes fcDrift2 {
+    0%,100%{transform:translate(0,0)} 33%{transform:translate(-12px,16px)} 66%{transform:translate(8px,-10px)}
   }
-  @keyframes nodeFloat3 {
-    0%,100% { transform: translateY(0px) scale(1); opacity: 0.25; }
-    50%     { transform: translateY(-12px) scale(1.05); opacity: 0.5; }
+  @keyframes fcDrift3 {
+    0%,100%{transform:translate(0,0)} 50%{transform:translate(6px,-14px)}
   }
-  @keyframes connectorPulse {
-    0%,100% { opacity: 0.15; }
-    50%     { opacity: 0.4; }
+  @keyframes badgeFloat {
+    0%,100%{transform:translateY(0);opacity:0.65} 50%{transform:translateY(-9px);opacity:0.95}
   }
-  @keyframes particleDrift {
-    0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
-    10%  { opacity: 0.6; }
-    90%  { opacity: 0.3; }
-    100% { transform: translateY(-100px) translateX(var(--drift)); opacity: 0; }
+  @keyframes badgeFloat2 {
+    0%,100%{transform:translateY(0);opacity:0.55} 50%{transform:translateY(9px);opacity:0.85}
   }
 `;
 
-// ── PARTICLE CANVAS ──────────────────────────────────────────────────────────
+// ── PARTICLE CANVAS ───────────────────────────────────────────────────────────
 function ParticleCanvas() {
-  const canvasRef = useRef(null);
+  const ref = useRef(null);
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let animId;
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-    resize();
-    window.addEventListener('resize', resize);
-
-    // Particles
-    const particles = Array.from({ length: 60 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 1.5 + 0.3,
-      alpha: Math.random() * 0.4 + 0.1,
+    const c = ref.current; if (!c) return;
+    const ctx = c.getContext('2d');
+    let id;
+    const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight; };
+    resize(); window.addEventListener('resize', resize);
+    const pts = Array.from({length:70}, () => ({
+      x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight,
+      vx:(Math.random()-0.5)*0.35, vy:(Math.random()-0.5)*0.35,
+      r: Math.random()*1.4+0.3, a: Math.random()*0.35+0.08
     }));
-
     const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Move
-      particles.forEach(p => {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
+      ctx.clearRect(0,0,c.width,c.height);
+      pts.forEach(p => {
+        p.x+=p.vx; p.y+=p.vy;
+        if(p.x<0)p.x=c.width; if(p.x>c.width)p.x=0;
+        if(p.y<0)p.y=c.height; if(p.y>c.height)p.y=0;
       });
-      // Connections
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            const alpha = (1 - dist / 120) * 0.12;
-            ctx.strokeStyle = `rgba(99,102,241,${alpha})`;
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-          }
+      for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++) {
+        const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<130) {
+          ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
+          ctx.strokeStyle=`rgba(99,102,241,${(1-d/130)*0.11})`;ctx.lineWidth=0.7;ctx.stroke();
         }
       }
-      // Dots
-      particles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(139,92,246,${p.alpha})`;
-        ctx.fill();
+      pts.forEach(p => {
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(139,92,246,${p.a})`;ctx.fill();
       });
-      animId = requestAnimationFrame(draw);
+      id = requestAnimationFrame(draw);
     };
     draw();
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', resize); };
   }, []);
-  return <canvas ref={canvasRef} className="ls-canvas"/>;
+  return <canvas ref={ref} className="ls-canvas"/>;
 }
 
-// ── ANIMATED FLOWCHART BACKGROUND ────────────────────────────────────────────
+// ── BACKGROUND FLOWCHARTS (full screen, both sides + center) ─────────────────
 function FloatingNodes() {
-  const [activePath, setActivePath] = useState(0);
+  const [active, setActive] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setActivePath(v => (v + 1) % 6), 1400);
+    const t = setInterval(() => setActive(v => (v+1)%6), 1300);
     return () => clearInterval(t);
   }, []);
 
-  const NW = 116, NH = 42, DH = 50;
+  const NW=110, NH=40, DH=48;
 
-  // Left chart nodes — document → flowchart pipeline
-  const LN = [
-    { x:70, y:50,  type:"oval",    label:"📄 Upload Doc",  color:"#10B981" },
-    { x:70, y:148, type:"rect",    label:"🤖 AI Reads",    color:"#6366F1" },
-    { x:70, y:246, type:"diamond", label:"Valid?",         color:"#F59E0B" },
-    { x:70, y:344, type:"rect",    label:"🔀 Map Steps",   color:"#8B5CF6" },
-    { x:70, y:442, type:"rect",    label:"👥 Add Actors",  color:"#6366F1" },
-    { x:70, y:540, type:"oval",    label:"📊 Export",      color:"#EF4444" },
-  ];
-  const LE = [
-    {f:0,t:1,label:""}, {f:1,t:2,label:""}, {f:2,t:3,label:"YES"},
-    {f:2,t:5,label:"NO",skip:true}, {f:3,t:4,label:""}, {f:4,t:5,label:""},
-  ];
-
-  // Right chart nodes — branching decision flow
-  const RN = [
-    { x:70, y:80,  type:"oval",    label:"▶ Start",       color:"#10B981" },
-    { x:70, y:178, type:"rect",    label:"🔍 Analyze",     color:"#6366F1" },
-    { x:70, y:276, type:"diamond", label:"Decision?",      color:"#F59E0B" },
-    { x:-40,y:374, type:"rect",    label:"📋 Path A",      color:"#8B5CF6" },
-    { x:180,y:374, type:"rect",    label:"📝 Path B",      color:"#06B6D4" },
-    { x:70, y:472, type:"oval",    label:"✓ Done",         color:"#EF4444" },
-  ];
-  const RE = [
-    {f:0,t:1,label:""}, {f:1,t:2,label:""}, {f:2,t:3,label:"YES"},
-    {f:2,t:4,label:"NO"}, {f:3,t:5,label:""}, {f:4,t:5,label:""},
-  ];
-
-  const renderChart = (nodes, edges, ox, oy, activeIdx) => {
-    const cx = n => ox + n.x;
-    const cy = n => oy + n.y;
-    const bot = n => n.type==="diamond" ? cy(n)+DH/2 : cy(n)+NH;
-    const top = n => n.type==="diamond" ? cy(n)-DH/2 : cy(n);
-
+  const renderChart = (nodes, edges, ox, oy, activeIdx, opacity, drift) => {
+    const cx=n=>ox+n.x, cy=n=>oy+n.y;
+    const bot=n=>n.type==="diamond"?cy(n)+DH/2:cy(n)+NH;
+    const top=n=>n.type==="diamond"?cy(n)-DH/2:cy(n);
     return (
-      <g>
-        {edges.map((e, i) => {
-          const fn=nodes[e.f], tn=nodes[e.t];
-          const x1=cx(fn), y1=bot(fn), x2=cx(tn), y2=top(tn);
-          const isAct = i===activeIdx;
-          const col = isAct ? fn.color : "rgba(99,102,241,0.12)";
-          const straight = Math.abs(x1-x2)<5;
-          const path = straight
-            ? `M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}`
-            : `M${x1},${y1} V${(y1+y2)/2} H${x2} V${y2}`;
+      <g opacity={opacity} style={{animation:`${drift} ease-in-out infinite`}}>
+        {edges.map((e,i)=>{
+          const fn=nodes[e.f],tn=nodes[e.t];
+          const x1=cx(fn),y1=bot(fn),x2=cx(tn),y2=top(tn);
+          const isAct=i===activeIdx, col=isAct?fn.color:"rgba(99,102,241,0.12)";
+          const straight=Math.abs(x1-x2)<8;
+          const path=straight
+            ?`M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}`
+            :`M${x1},${y1} V${(y1+y2)/2} H${x2} V${y2}`;
           return (
             <g key={i}>
               <path d={path} fill="none" stroke={col}
                 strokeWidth={isAct?1.8:0.8} strokeDasharray={isAct?"none":"3 5"}
-                style={{transition:"all 0.5s", filter:isAct?`drop-shadow(0 0 3px ${fn.color})`:"none"}}/>
-              {isAct && (
-                <circle r="3.5" fill={fn.color} opacity="0.95"
-                  style={{filter:`drop-shadow(0 0 5px ${fn.color})`}}>
-                  <animateMotion dur="1.4s" repeatCount="indefinite" path={path}/>
-                </circle>
-              )}
-              {e.label && (
-                <text x={(x1+x2)/2+(x2>x1?10:-10)} y={(y1+y2)/2-2}
-                  fill={isAct?fn.color:"rgba(148,163,184,0.25)"}
-                  fontSize="7" fontWeight="800" fontFamily="DM Sans,sans-serif"
-                  style={{transition:"all 0.5s"}}>
-                  {e.label}
-                </text>
-              )}
+                style={{transition:"all 0.5s",filter:isAct?`drop-shadow(0 0 4px ${fn.color})`:"none"}}/>
+              {isAct&&<circle r="3.5" fill={fn.color} opacity="0.95"
+                style={{filter:`drop-shadow(0 0 6px ${fn.color})`}}>
+                <animateMotion dur="1.3s" repeatCount="indefinite" path={path}/>
+              </circle>}
+              {e.label&&<text x={(x1+x2)/2+(x2>x1?9:-9)} y={(y1+y2)/2-2}
+                fill={isAct?fn.color:"rgba(148,163,184,0.2)"} fontSize="7" fontWeight="800"
+                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>{e.label}</text>}
             </g>
           );
         })}
-        {nodes.map((n, i) => {
-          const isAct = edges.some((e,ei)=>ei===activeIdx&&(e.f===i||e.t===i));
-          const x=cx(n), y=cy(n), col=n.color;
-          const glow = isAct ? `drop-shadow(0 0 8px ${col}77)` : "none";
-          if (n.type==="oval") return (
-            <g key={i} style={{transition:"all 0.5s"}}>
-              <ellipse cx={x} cy={y+NH/2} rx={NW/2} ry={NH/2-3}
-                fill={isAct?`${col}20`:"rgba(255,255,255,0.025)"}
-                stroke={isAct?col:`${col}35`} strokeWidth={isAct?1.5:0.8}
+        {nodes.map((n,i)=>{
+          const isAct=edges.some((e,ei)=>ei===activeIdx&&(e.f===i||e.t===i));
+          const x=cx(n),y=cy(n),col=n.color;
+          const glow=isAct?`drop-shadow(0 0 9px ${col}77)`:"none";
+          if(n.type==="oval") return (
+            <g key={i}>
+              <ellipse cx={x} cy={y+NH/2} rx={NW/2} ry={NH/2-2}
+                fill={isAct?`${col}1E`:"rgba(255,255,255,0.022)"}
+                stroke={isAct?col:`${col}33`} strokeWidth={isAct?1.5:0.7}
                 style={{filter:glow,transition:"all 0.5s"}}/>
-              <text x={x} y={y+NH/2+4} textAnchor="middle"
-                fontSize="8.5" fontWeight="700" fill={isAct?col:`${col}55`}
-                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>
-                {n.label}
-              </text>
+              <text x={x} y={y+NH/2+4} textAnchor="middle" fontSize="8" fontWeight="700"
+                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif"
+                style={{transition:"all 0.5s"}}>{n.label}</text>
             </g>
           );
-          if (n.type==="diamond") {
-            const hw=NW/2-12, hh=DH/2;
-            return (
-              <g key={i}>
-                <polygon points={`${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}`}
-                  fill={isAct?`${col}20`:"rgba(255,255,255,0.025)"}
-                  stroke={isAct?col:`${col}35`} strokeWidth={isAct?1.5:0.8}
-                  style={{filter:glow,transition:"all 0.5s"}}/>
-                <text x={x} y={y+4} textAnchor="middle"
-                  fontSize="8" fontWeight="700" fill={isAct?col:`${col}55`}
-                  fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>
-                  {n.label}
-                </text>
-              </g>
-            );
-          }
+          if(n.type==="diamond"){const hw=NW/2-12,hh=DH/2; return (
+            <g key={i}>
+              <polygon points={`${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}`}
+                fill={isAct?`${col}1E`:"rgba(255,255,255,0.022)"}
+                stroke={isAct?col:`${col}33`} strokeWidth={isAct?1.5:0.7}
+                style={{filter:glow,transition:"all 0.5s"}}/>
+              <text x={x} y={y+4} textAnchor="middle" fontSize="7.5" fontWeight="700"
+                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif"
+                style={{transition:"all 0.5s"}}>{n.label}</text>
+            </g>
+          );}
           return (
             <g key={i}>
               <rect x={x-NW/2} y={y} width={NW} height={NH} rx="7"
-                fill={isAct?`${col}18`:"rgba(255,255,255,0.025)"}
-                stroke={isAct?col:`${col}30`} strokeWidth={isAct?1.5:0.8}
+                fill={isAct?`${col}18`:"rgba(255,255,255,0.022)"}
+                stroke={isAct?col:`${col}28`} strokeWidth={isAct?1.5:0.7}
                 style={{filter:glow,transition:"all 0.5s"}}/>
               <rect x={x-NW/2} y={y} width={NW} height={isAct?3:2} rx="7"
-                fill={isAct?col:`${col}30`} style={{transition:"all 0.5s"}}/>
+                fill={isAct?col:`${col}28`} style={{transition:"all 0.5s"}}/>
               <rect x={x-NW/2} y={y+1} width={NW} height={isAct?2:1}
-                fill={isAct?col:`${col}30`} style={{transition:"all 0.5s"}}/>
-              <text x={x} y={y+NH/2+4} textAnchor="middle"
-                fontSize="8.5" fontWeight="600" fill={isAct?"rgba(255,255,255,0.85)":`rgba(148,163,184,0.28)`}
-                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>
-                {n.label}
-              </text>
+                fill={isAct?col:`${col}28`} style={{transition:"all 0.5s"}}/>
+              <text x={x} y={y+NH/2+4} textAnchor="middle" fontSize="8" fontWeight="600"
+                fill={isAct?"rgba(255,255,255,0.82)":`rgba(148,163,184,0.25)`}
+                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>{n.label}</text>
             </g>
           );
         })}
@@ -1231,83 +1029,191 @@ function FloatingNodes() {
     );
   };
 
-  // Purpose badges floating at bottom
-  const badges = [
-    { x:60,  y:"91%", text:"📄 → 🔀  Document to Flowchart", color:"#6366F1", anim:"badgeDrift1 7s ease-in-out infinite" },
-    { x:"73%",y:"89%",text:"🤖  AI-Powered Extraction",      color:"#8B5CF6", anim:"badgeDrift2 8s 0.5s ease-in-out infinite" },
-    { x:"73%",y:"11%",text:"📊  Export to Word / PDF / PPT", color:"#06B6D4", anim:"badgeDrift3 6s 1s ease-in-out infinite" },
-    { x:22,   y:"52%",text:"👥  Actor & Role Mapping",       color:"#10B981", anim:"badgeDrift1 9s 1.5s ease-in-out infinite" },
+  // LEFT chart — vertical document pipeline
+  const LN=[
+    {x:70,y:30, type:"oval",    label:"📄 Upload",    color:"#10B981"},
+    {x:70,y:118,type:"rect",    label:"🤖 AI Reads",  color:"#6366F1"},
+    {x:70,y:206,type:"diamond", label:"Valid?",        color:"#F59E0B"},
+    {x:70,y:304,type:"rect",    label:"🔀 Map Steps", color:"#8B5CF6"},
+    {x:70,y:392,type:"rect",    label:"👥 Actors",    color:"#6366F1"},
+    {x:70,y:480,type:"oval",    label:"📊 Export",    color:"#EF4444"},
   ];
+  const LE=[{f:0,t:1},{f:1,t:2},{f:2,t:3,label:"YES"},{f:2,t:5,label:"NO"},{f:3,t:4},{f:4,t:5}];
+
+  // RIGHT chart — branching decision flow
+  const RN=[
+    {x:60,y:40, type:"oval",    label:"▶ Start",    color:"#10B981"},
+    {x:60,y:128,type:"rect",    label:"🔍 Analyze", color:"#6366F1"},
+    {x:60,y:216,type:"diamond", label:"Decision?",  color:"#F59E0B"},
+    {x:-35,y:314,type:"rect",   label:"📋 Path A",  color:"#8B5CF6"},
+    {x:155,y:314,type:"rect",   label:"📝 Path B",  color:"#06B6D4"},
+    {x:60,y:412,type:"oval",    label:"✓ Done",     color:"#EF4444"},
+  ];
+  const RE=[{f:0,t:1},{f:1,t:2},{f:2,t:3,label:"YES"},{f:2,t:4,label:"NO"},{f:3,t:5},{f:4,t:5}];
+
+  // TOP chart — horizontal process strip across the top
+  const TN=[
+    {x:0,  y:30, type:"oval",    label:"Start",      color:"#10B981"},
+    {x:140,y:30, type:"rect",    label:"📥 Input",   color:"#6366F1"},
+    {x:280,y:30, type:"diamond", label:"Check?",     color:"#F59E0B"},
+    {x:420,y:30, type:"rect",    label:"⚙️ Process", color:"#8B5CF6"},
+    {x:560,y:30, type:"rect",    label:"✅ Validate", color:"#06B6D4"},
+    {x:700,y:30, type:"oval",    label:"End",        color:"#EF4444"},
+  ];
+  const TE=[{f:0,t:1},{f:1,t:2},{f:2,t:3,label:"YES"},{f:2,t:5,label:"NO"},{f:3,t:4},{f:4,t:5}];
+
+  // BOTTOM chart — horizontal process strip across the bottom
+  const BN=[
+    {x:0,  y:30, type:"oval",    label:"📄 Doc",     color:"#10B981"},
+    {x:140,y:30, type:"rect",    label:"🤖 Extract", color:"#6366F1"},
+    {x:280,y:30, type:"rect",    label:"🗺 Map",     color:"#8B5CF6"},
+    {x:420,y:30, type:"diamond", label:"Review?",    color:"#F59E0B"},
+    {x:560,y:30, type:"rect",    label:"📊 Chart",   color:"#06B6D4"},
+    {x:700,y:30, type:"oval",    label:"🚀 Export",  color:"#EF4444"},
+  ];
+  const BE=[{f:0,t:1},{f:1,t:2},{f:2,t:3},{f:3,t:4,label:"YES"},{f:3,t:5,label:"NO"},{f:4,t:5}];
+
+  // horizontal edge renderer for top/bottom strips
+  const renderHorizChart = (nodes, edges, svgW, svgH, activeIdx, opacity, drift) => {
+    const cy=n=>svgH/2, cx=n=>n.x+NW/2;
+    const right=n=>n.type==="diamond"?cx(n)+DH/2:cx(n)+NW/2;
+    const left=n=>n.type==="diamond"?cx(n)-DH/2:cx(n)-NW/2;
+    return (
+      <g opacity={opacity} style={{animation:`${drift} ease-in-out infinite`}}>
+        {edges.map((e,i)=>{
+          const fn=nodes[e.f],tn=nodes[e.t];
+          const x1=right(fn),y1=cy(fn),x2=left(tn),y2=cy(tn);
+          const isAct=i===activeIdx, col=isAct?fn.color:"rgba(99,102,241,0.1)";
+          const path=`M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`;
+          return (
+            <g key={i}>
+              <path d={path} fill="none" stroke={col}
+                strokeWidth={isAct?1.8:0.7} strokeDasharray={isAct?"none":"3 5"}
+                style={{transition:"all 0.5s",filter:isAct?`drop-shadow(0 0 4px ${fn.color})`:"none"}}/>
+              {isAct&&<circle r="3" fill={fn.color} opacity="0.9"
+                style={{filter:`drop-shadow(0 0 5px ${fn.color})`}}>
+                <animateMotion dur="1.3s" repeatCount="indefinite" path={path}/>
+              </circle>}
+              {e.label&&<text x={(x1+x2)/2} y={y1-6}
+                fill={isAct?fn.color:"rgba(148,163,184,0.2)"} fontSize="7" fontWeight="800"
+                textAnchor="middle" fontFamily="DM Sans,sans-serif">{e.label}</text>}
+            </g>
+          );
+        })}
+        {nodes.map((n,i)=>{
+          const isAct=edges.some((e,ei)=>ei===activeIdx&&(e.f===i||e.t===i));
+          const x=cx(n),y=svgH/2,col=n.color;
+          const glow=isAct?`drop-shadow(0 0 8px ${col}77)`:"none";
+          if(n.type==="oval") return (
+            <g key={i}>
+              <ellipse cx={x} cy={y} rx={NW/2} ry={NH/2-2}
+                fill={isAct?`${col}1E`:"rgba(255,255,255,0.02)"}
+                stroke={isAct?col:`${col}30`} strokeWidth={isAct?1.5:0.7}
+                style={{filter:glow,transition:"all 0.5s"}}/>
+              <text x={x} y={y+4} textAnchor="middle" fontSize="8" fontWeight="700"
+                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif">{n.label}</text>
+            </g>
+          );
+          if(n.type==="diamond"){const hw=NW/2-10,hh=NH/2; return (
+            <g key={i}>
+              <polygon points={`${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}`}
+                fill={isAct?`${col}1E`:"rgba(255,255,255,0.02)"}
+                stroke={isAct?col:`${col}30`} strokeWidth={isAct?1.5:0.7}
+                style={{filter:glow,transition:"all 0.5s"}}/>
+              <text x={x} y={y+4} textAnchor="middle" fontSize="7.5" fontWeight="700"
+                fill={isAct?col:`${col}50`} fontFamily="DM Sans,sans-serif">{n.label}</text>
+            </g>
+          );}
+          return (
+            <g key={i}>
+              <rect x={x-NW/2} y={y-NH/2} width={NW} height={NH} rx="7"
+                fill={isAct?`${col}18`:"rgba(255,255,255,0.02)"}
+                stroke={isAct?col:`${col}25`} strokeWidth={isAct?1.5:0.7}
+                style={{filter:glow,transition:"all 0.5s"}}/>
+              <rect x={x-NW/2} y={y-NH/2} width={NW} height={isAct?3:2} rx="7"
+                fill={isAct?col:`${col}25`} style={{transition:"all 0.5s"}}/>
+              <text x={x} y={y+4} textAnchor="middle" fontSize="8" fontWeight="600"
+                fill={isAct?"rgba(255,255,255,0.8)":`rgba(148,163,184,0.22)`}
+                fontFamily="DM Sans,sans-serif">{n.label}</text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
 
   return (
     <svg style={{position:"fixed",inset:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:1,overflow:"visible"}}>
-      {/* Left flowchart */}
-      <g opacity="0.6" style={{animation:"chartDriftL 22s ease-in-out infinite"}}>
-        {renderChart(LN, LE, 30, 50, activePath % LE.length)}
-      </g>
 
-      {/* Right flowchart — positioned right side using foreignObject trick via translate */}
-      <g opacity="0.5" style={{animation:"chartDriftR 26s ease-in-out infinite"}}>
-        <g transform="translate(calc(100vw - 210px), 30)">
-          {renderChart(RN, RE, 0, 0, activePath % RE.length)}
-        </g>
+      {/* TOP horizontal strip */}
+      <svg x="0" y="0" width="100%" height="80" overflow="visible">
+        {renderHorizChart(TN, TE, 800, 80, active%TE.length, 0.45, "fcDrift3 18s ease-in-out infinite")}
+      </svg>
+
+      {/* BOTTOM horizontal strip */}
+      <svg x="0" y="calc(100% - 80px)" width="100%" height="80" overflow="visible">
+        {renderHorizChart(BN, BE, 800, 80, active%BE.length, 0.4, "fcDrift3 22s 2s ease-in-out infinite")}
+      </svg>
+
+      {/* LEFT vertical chart */}
+      <svg x="0" y="0" width="160" height="100%" overflow="visible">
+        {renderChart(LN, LE, 25, 60, active%LE.length, 0.52, "fcDrift1 20s ease-in-out infinite")}
+      </svg>
+
+      {/* RIGHT vertical chart — use a foreignObject trick: translate to right edge */}
+      <g transform="translate(-160,0)" style={{transform:"translateX(calc(100vw - 160px))"}}>
+        <svg x="0" y="0" width="160" height="100%" overflow="visible">
+          {renderChart(RN, RE, 25, 80, active%RE.length, 0.44, "fcDrift2 24s ease-in-out infinite")}
+        </svg>
       </g>
 
       {/* Purpose badges */}
-      {badges.map((b,i) => {
-        const bw = 210;
+      {[
+        {x:"50%",y:90,  text:"📄 → 🔀  Document to Flowchart",  color:"#6366F1", anim:"badgeFloat  7s ease-in-out infinite",    tx:"-50%"},
+        {x:"50%",y:-14, text:"🤖  AI-Powered Extraction",        color:"#8B5CF6", anim:"badgeFloat2 8s 0.7s ease-in-out infinite",tx:"-50%"},
+        {x:4,    y:"50%",text:"👥 Actor Mapping",                 color:"#10B981", anim:"badgeFloat  9s 1s ease-in-out infinite",  tx:"0",   vert:true},
+      ].map((b,i)=>{
+        const bw=200, bh=22;
         return (
           <g key={i} style={{animation:b.anim}}>
-            <rect x={typeof b.x==="number"?b.x:0} y={-14} width={bw} height={22} rx={11}
-              fill="rgba(10,12,28,0.75)" stroke={`${b.color}45`} strokeWidth="1"
-              style={typeof b.x==="string"?{transform:`translateX(${b.x})`}:{}}/>
-            <text x={typeof b.x==="number"?b.x+bw/2:bw/2} y={2}
-              textAnchor="middle" fontSize="9" fontWeight="700" fill={b.color}
-              fontFamily="DM Sans,sans-serif"
-              style={typeof b.x==="string"?{transform:`translateX(${b.x})`}:{}}>
-              {b.text}
-            </text>
+            {!b.vert ? (
+              <>
+                <rect x={`calc(${b.x} - ${bw/2}px)`} y={b.y} width={bw} height={bh} rx={11}
+                  fill="rgba(8,10,24,0.75)" stroke={`${b.color}40`} strokeWidth="1"/>
+                <text x={b.x} y={b.y+15} textAnchor="middle" fontSize="9" fontWeight="700"
+                  fill={b.color} fontFamily="DM Sans,sans-serif">{b.text}</text>
+              </>
+            ) : (
+              <>
+                <rect x={b.x} y={`calc(${b.y} - 11px)`} width={bw} height={bh} rx={11}
+                  fill="rgba(8,10,24,0.75)" stroke={`${b.color}40`} strokeWidth="1"/>
+                <text x={b.x+bw/2} y={`calc(${b.y} + 4px)`} textAnchor="middle" fontSize="9"
+                  fontWeight="700" fill={b.color} fontFamily="DM Sans,sans-serif">{b.text}</text>
+              </>
+            )}
           </g>
         );
       })}
-
-      <style>{`
-        @keyframes chartDriftL {
-          0%,100%{transform:translate(0,0)} 33%{transform:translate(8px,-16px)} 66%{transform:translate(-5px,10px)}
-        }
-        @keyframes chartDriftR {
-          0%,100%{transform:translate(0,0)} 33%{transform:translate(-10px,14px)} 66%{transform:translate(6px,-8px)}
-        }
-        @keyframes badgeDrift1 {
-          0%,100%{transform:translateY(0);opacity:.65} 50%{transform:translateY(-10px);opacity:.95}
-        }
-        @keyframes badgeDrift2 {
-          0%,100%{transform:translateY(0);opacity:.55} 50%{transform:translateY(10px);opacity:.85}
-        }
-        @keyframes badgeDrift3 {
-          0%,100%{transform:translateY(0);opacity:.6} 50%{transform:translateY(-7px);opacity:.9}
-        }
-      `}</style>
     </svg>
   );
 }
 
 // ── PASSWORD STRENGTH ─────────────────────────────────────────────────────────
 function PwStrength({ password }) {
-  const score = [password.length >= 6, /[A-Z]/.test(password), /[0-9]/.test(password)].filter(Boolean).length;
-  const colors = ["#EF4444","#F59E0B","#10B981"];
-  const labels = ["Weak","Fair","Strong"];
+  const score = [password.length>=6, /[A-Z]/.test(password), /[0-9]/.test(password)].filter(Boolean).length;
+  const cols = ["#EF4444","#F59E0B","#10B981"];
+  const labs = ["Weak","Fair","Strong"];
   if (!password) return null;
   return (
     <div className="ls-strength">
-      <div className="ls-strength-bars">
-        {[0,1,2].map(i => (
-          <div key={i} className="ls-strength-bar"
-            style={{ background: i < score ? colors[score-1] : "rgba(255,255,255,0.08)", boxShadow: i < score ? `0 0 6px ${colors[score-1]}66` : "none" }}/>
+      <div className="ls-str-bars">
+        {[0,1,2].map(i=>(
+          <div key={i} className="ls-str-bar"
+            style={{background:i<score?cols[score-1]:"rgba(255,255,255,0.07)",boxShadow:i<score?`0 0 7px ${cols[score-1]}66`:"none"}}/>
         ))}
       </div>
-      <span className="ls-strength-label" style={{ color: score > 0 ? colors[score-1] : "rgba(148,163,184,0.4)" }}>
-        {score > 0 ? labels[score-1] : ""} {score === 3 ? "✓" : ""}
+      <span className="ls-str-label" style={{color:score>0?cols[score-1]:"rgba(148,163,184,0.4)"}}>
+        {score>0?labs[score-1]:""}{score===3?" ✓":""}
       </span>
     </div>
   );
@@ -1316,80 +1222,76 @@ function PwStrength({ password }) {
 // ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }) {
   const existingUser = LS.get(KEYS.USER);
-  const [tab, setTab] = useState(existingUser ? "login" : "register");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [tab, setTab]       = useState(existingUser ? "login" : "register");
+  const [username, setUser] = useState("");
+  const [password, setPw]   = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [shake, setShake] = useState(false);
-  const [focused, setFocused] = useState(null);
+  const [error, setError]   = useState("");
+  const [loading, setLoad]  = useState(false);
+  const [shake, setShake]   = useState(false);
+  const [focused, setFocus] = useState(null);
 
-  const triggerShake = () => { setShake(true); setTimeout(() => setShake(false), 500); };
-
-  const switchTab = (t) => {
-    setTab(t); setError(""); setUsername(""); setPassword("");
-  };
+  const doShake = () => { setShake(true); setTimeout(()=>setShake(false), 450); };
+  const switchTab = (t) => { setTab(t); setError(""); setUser(""); setPw(""); };
 
   const handleRegister = () => {
-    if (!username.trim() || username.trim().length < 3) { setError("Username must be at least 3 characters."); triggerShake(); return; }
-    if (!password || password.length < 6) { setError("Password must be at least 6 characters."); triggerShake(); return; }
-    if (LS.get(KEYS.USER)) { setError("Account already exists. Please sign in."); switchTab("login"); return; }
-    const user = { username: username.trim(), passwordHash: hashPassword(password) };
+    if (!username.trim()||username.trim().length<3) { setError("Username must be at least 3 characters."); doShake(); return; }
+    if (!password||password.length<6)               { setError("Password must be at least 6 characters."); doShake(); return; }
+    if (LS.get(KEYS.USER))                           { setError("Account exists. Please sign in."); switchTab("login"); return; }
+    const user = { username:username.trim(), passwordHash:hashPassword(password) };
     LS.set(KEYS.USER, user);
-    LS.set(KEYS.SESSION, { username: user.username, loggedInAt: new Date().toISOString() });
+    LS.set(KEYS.SESSION, { username:user.username, loggedInAt:new Date().toISOString() });
     onLogin(user.username, false);
   };
 
   const handleLogin = async () => {
-    if (!username.trim() || !password) { setError("Please fill in all fields."); triggerShake(); return; }
-    setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 700));
+    if (!username.trim()||!password) { setError("Please fill in all fields."); doShake(); return; }
+    setLoad(true); setError("");
+    await new Promise(r=>setTimeout(r,700));
     const user = LS.get(KEYS.USER);
-    if (!user) { setError("No account found. Create one first."); switchTab("register"); setLoading(false); return; }
-    if (user.username.toLowerCase() !== username.trim().toLowerCase()) { setError("Incorrect username."); triggerShake(); setLoading(false); return; }
-    if (user.passwordHash !== hashPassword(password)) { setError("Incorrect password."); triggerShake(); setLoading(false); return; }
-    LS.set(KEYS.SESSION, { username: user.username, loggedInAt: new Date().toISOString() });
-    setLoading(false);
+    if (!user)                                                            { setError("No account found. Create one first."); switchTab("register"); setLoad(false); return; }
+    if (user.username.toLowerCase()!==username.trim().toLowerCase())      { setError("Incorrect username."); doShake(); setLoad(false); return; }
+    if (user.passwordHash!==hashPassword(password))                       { setError("Incorrect password."); doShake(); setLoad(false); return; }
+    LS.set(KEYS.SESSION, { username:user.username, loggedInAt:new Date().toISOString() });
+    setLoad(false);
     onLogin(user.username, !!LS.get(KEYS.APIKEY));
   };
 
-  const fieldDelay = (i) => ({ animationDelay: `${0.3 + i * 0.08}s` });
+  const fd = (i) => ({ animationDelay:`${0.32+i*0.07}s` });
 
   return (
     <div className="ls-root">
       <style>{LOGIN_CSS}</style>
-
-      {/* Animated background layers */}
       <ParticleCanvas/>
       <div className="ls-grid"/>
       <div className="ls-blob ls-blob-1"/>
       <div className="ls-blob ls-blob-2"/>
       <div className="ls-blob ls-blob-3"/>
+      <div className="ls-blob ls-blob-4"/>
       <FloatingNodes/>
 
-      {/* Card */}
       <div className="ls-card">
         <div className="ls-card-inner">
 
           {/* Logo */}
           <div className="ls-logo-wrap">
-            <div className="ls-logo-hex">
+            <div className="ls-logo-icon">
               <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                  <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <linearGradient id="hg1" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#6366F1"/>
                     <stop offset="50%" stopColor="#8B5CF6"/>
                     <stop offset="100%" stopColor="#06B6D4"/>
                   </linearGradient>
-                  <linearGradient id="hexGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="rgba(255,255,255,0.3)"/>
+                  <linearGradient id="hg2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.28)"/>
                     <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
                   </linearGradient>
                 </defs>
-                <polygon points="32,4 56,17 56,47 32,60 8,47 8,17" fill="url(#hexGrad)" stroke="rgba(139,92,246,0.4)" strokeWidth="1"/>
-                <polygon points="32,4 56,17 56,47 32,60 8,47 8,17" fill="url(#hexGrad2)"/>
-                <text x="32" y="38" textAnchor="middle" fontSize="22" fontWeight="bold" fill="white" fontFamily="sans-serif">⬡</text>
+                <polygon points="32,3 57,17.5 57,46.5 32,61 7,46.5 7,17.5" fill="url(#hg1)" stroke="rgba(139,92,246,0.5)" strokeWidth="1"/>
+                <polygon points="32,3 57,17.5 57,46.5 32,61 7,46.5 7,17.5" fill="url(#hg2)"/>
+                <circle cx="32" cy="32" r="10" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
+                <circle cx="32" cy="32" r="4" fill="white" opacity="0.9"/>
               </svg>
             </div>
             <div className="ls-logo-title">FlowScribe</div>
@@ -1403,87 +1305,94 @@ function LoginScreen({ onLogin }) {
           </div>
 
           {/* Form */}
-          <div className={shake ? "ls-shake" : ""}>
+          <div className={shake?"ls-shake":""}>
 
             {/* Username */}
-            <div className="ls-field" style={fieldDelay(0)}>
+            <div className="ls-field" style={fd(0)}>
               <label className="ls-field-label">Username</label>
               <div className="ls-input-wrap">
+                <span className="ls-input-icon-left">{focused==="u"?"✨":"👤"}</span>
                 <input className="ls-input" type="text" value={username}
-                  onChange={e=>{setUsername(e.target.value);setError("");}}
+                  onChange={e=>{setUser(e.target.value);setError("");}}
                   placeholder="Enter your username"
-                  onFocus={()=>setFocused("user")} onBlur={()=>setFocused(null)}
+                  onFocus={()=>setFocus("u")} onBlur={()=>setFocus(null)}
                   onKeyDown={e=>e.key==="Enter"&&(tab==="login"?handleLogin():handleRegister())}
-                  autoFocus style={{ paddingLeft:"42px" }}/>
-                <span className="ls-input-icon" style={{ left:"14px", top:"50%", transform:"translateY(-50%)", fontSize:"15px" }}>
-                  {focused==="user" ? "✨" : "👤"}
-                </span>
+                  autoFocus/>
               </div>
             </div>
 
             {/* Password */}
-            <div className="ls-field" style={fieldDelay(1)}>
+            <div className="ls-field" style={fd(1)}>
               <label className="ls-field-label">Password</label>
               <div className="ls-input-wrap">
+                <span className="ls-input-icon-left">{focused==="p"?"✨":"🔒"}</span>
                 <input className="ls-input" type={showPw?"text":"password"} value={password}
-                  onChange={e=>{setPassword(e.target.value);setError("");}}
+                  onChange={e=>{setPw(e.target.value);setError("");}}
                   placeholder={tab==="register"?"Min 6 characters":"Your password"}
-                  onFocus={()=>setFocused("pw")} onBlur={()=>setFocused(null)}
+                  onFocus={()=>setFocus("p")} onBlur={()=>setFocus(null)}
                   onKeyDown={e=>e.key==="Enter"&&(tab==="login"?handleLogin():handleRegister())}
-                  style={{ paddingLeft:"42px", paddingRight:"44px" }}/>
-                <span className="ls-input-icon" style={{ left:"14px", top:"50%", transform:"translateY(-50%)", fontSize:"15px" }}>
-                  {focused==="pw" ? "✨" : "🔒"}
-                </span>
-                <button className="ls-pw-toggle" onClick={()=>setShowPw(v=>!v)}>
-                  {showPw ? "🙈" : "👁️"}
-                </button>
+                  style={{paddingRight:"46px"}}/>
+                <button className="ls-pw-eye" onClick={()=>setShowPw(v=>!v)}>{showPw?"🙈":"👁️"}</button>
               </div>
-              {tab==="register" && <PwStrength password={password}/>}
+              {tab==="register"&&<PwStrength password={password}/>}
             </div>
 
             {/* Error */}
-            {error && (
+            {error&&(
               <div className="ls-error">
-                <span style={{ fontSize:"16px" }}>⚠️</span>
+                <span style={{fontSize:"16px"}}>⚠️</span>
                 <span>{error}</span>
               </div>
             )}
 
-            {/* Submit */}
-            <button className="ls-btn" onClick={tab==="login"?handleLogin:handleRegister} disabled={loading} style={fieldDelay(2)}>
-              {loading ? (
-                <span style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"10px" }}>
-                  <span className="ls-spinner"/>
-                  Authenticating…
-                </span>
-              ) : tab==="login" ? "Sign In →" : "Create Account →"}
+            {/* Button */}
+            <button className="ls-btn" onClick={tab==="login"?handleLogin:handleRegister}
+              disabled={loading} style={fd(2)}>
+              {loading
+                ? <span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"10px"}}>
+                    <span className="ls-spin"/>Authenticating…
+                  </span>
+                : tab==="login" ? "Sign In →" : "Create Account →"}
             </button>
           </div>
 
           {/* Switch */}
-          <div className="ls-divider">
-            <div className="ls-divider-line"/>
-            <span className="ls-divider-text">{tab==="login"?"Don't have an account?":"Already have an account?"}</span>
-            <div className="ls-divider-line"/>
+          <div className="ls-div">
+            <div className="ls-div-line"/>
+            <span className="ls-div-text">{tab==="login"?"New here?":"Have an account?"}</span>
+            <div className="ls-div-line"/>
           </div>
-
           <div className="ls-switch">
             <button className="ls-switch-btn" onClick={()=>switchTab(tab==="login"?"register":"login")}>
-              {tab==="login" ? "Create a free account" : "Sign in instead"}
+              {tab==="login"?"Create a free account":"Sign in instead"}
             </button>
           </div>
 
-          {/* Footer */}
-          <div className="ls-footer">
-            🔒 Credentials stored locally · Never shared with anyone
+          {/* Trust badges */}
+          <div className="ls-trust" style={{marginTop:"18px"}}>
+            <div className="ls-trust-item">
+              <div className="ls-trust-dot" style={{background:"#10B981",animationDelay:"0s"}}/>
+              Local storage only
+            </div>
+            <div className="ls-trust-item">
+              <div className="ls-trust-dot" style={{background:"#6366F1",animationDelay:"0.6s"}}/>
+              Never shared
+            </div>
+            <div className="ls-trust-item">
+              <div className="ls-trust-dot" style={{background:"#8B5CF6",animationDelay:"1.2s"}}/>
+              Free to use
+            </div>
           </div>
+
+          <div className="ls-foot">🔒 Credentials stored locally · Never shared with anyone</div>
         </div>
       </div>
     </div>
   );
 }
 
-// ── API KEY SETUP ─────────────────────────────────────────────────────────────
+
+
 function ApiKeySetup({ username, onDone }) {
   const [key, setKey] = useState("");
   const [show, setShow] = useState(false);
