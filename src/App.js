@@ -1099,29 +1099,196 @@ function ParticleCanvas() {
   return <canvas ref={canvasRef} className="ls-canvas"/>;
 }
 
-// ── FLOATING DECORATIVE NODES ─────────────────────────────────────────────────
+// ── ANIMATED FLOWCHART BACKGROUND ────────────────────────────────────────────
 function FloatingNodes() {
-  const nodes = [
-    { label:"Start", color:"#10B981", bg:"rgba(16,185,129,0.08)", style:{ top:"12%", left:"6%", width:80, height:36, borderRadius:20, animation:"nodeFloat1 6s ease-in-out infinite" } },
-    { label:"Decision ◆", color:"#F59E0B", bg:"rgba(245,158,11,0.08)", style:{ top:"25%", right:"5%", width:110, height:36, borderRadius:8, animation:"nodeFloat2 8s ease-in-out infinite" } },
-    { label:"Process", color:"#6366F1", bg:"rgba(99,102,241,0.08)", style:{ bottom:"28%", left:"4%", width:90, height:36, borderRadius:10, animation:"nodeFloat3 7s ease-in-out infinite" } },
-    { label:"Export ✓", color:"#8B5CF6", bg:"rgba(139,92,246,0.08)", style:{ bottom:"15%", right:"6%", width:90, height:36, borderRadius:10, animation:"nodeFloat1 9s 1s ease-in-out infinite" } },
-    { label:"End", color:"#EF4444", bg:"rgba(239,68,68,0.08)", style:{ top:"60%", right:"8%", width:70, height:36, borderRadius:20, animation:"nodeFloat2 7s 2s ease-in-out infinite" } },
+  const [activePath, setActivePath] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setActivePath(v => (v + 1) % 6), 1400);
+    return () => clearInterval(t);
+  }, []);
+
+  const NW = 116, NH = 42, DH = 50;
+
+  // Left chart nodes — document → flowchart pipeline
+  const LN = [
+    { x:70, y:50,  type:"oval",    label:"📄 Upload Doc",  color:"#10B981" },
+    { x:70, y:148, type:"rect",    label:"🤖 AI Reads",    color:"#6366F1" },
+    { x:70, y:246, type:"diamond", label:"Valid?",         color:"#F59E0B" },
+    { x:70, y:344, type:"rect",    label:"🔀 Map Steps",   color:"#8B5CF6" },
+    { x:70, y:442, type:"rect",    label:"👥 Add Actors",  color:"#6366F1" },
+    { x:70, y:540, type:"oval",    label:"📊 Export",      color:"#EF4444" },
   ];
+  const LE = [
+    {f:0,t:1,label:""}, {f:1,t:2,label:""}, {f:2,t:3,label:"YES"},
+    {f:2,t:5,label:"NO",skip:true}, {f:3,t:4,label:""}, {f:4,t:5,label:""},
+  ];
+
+  // Right chart nodes — branching decision flow
+  const RN = [
+    { x:70, y:80,  type:"oval",    label:"▶ Start",       color:"#10B981" },
+    { x:70, y:178, type:"rect",    label:"🔍 Analyze",     color:"#6366F1" },
+    { x:70, y:276, type:"diamond", label:"Decision?",      color:"#F59E0B" },
+    { x:-40,y:374, type:"rect",    label:"📋 Path A",      color:"#8B5CF6" },
+    { x:180,y:374, type:"rect",    label:"📝 Path B",      color:"#06B6D4" },
+    { x:70, y:472, type:"oval",    label:"✓ Done",         color:"#EF4444" },
+  ];
+  const RE = [
+    {f:0,t:1,label:""}, {f:1,t:2,label:""}, {f:2,t:3,label:"YES"},
+    {f:2,t:4,label:"NO"}, {f:3,t:5,label:""}, {f:4,t:5,label:""},
+  ];
+
+  const renderChart = (nodes, edges, ox, oy, activeIdx) => {
+    const cx = n => ox + n.x;
+    const cy = n => oy + n.y;
+    const bot = n => n.type==="diamond" ? cy(n)+DH/2 : cy(n)+NH;
+    const top = n => n.type==="diamond" ? cy(n)-DH/2 : cy(n);
+
+    return (
+      <g>
+        {edges.map((e, i) => {
+          const fn=nodes[e.f], tn=nodes[e.t];
+          const x1=cx(fn), y1=bot(fn), x2=cx(tn), y2=top(tn);
+          const isAct = i===activeIdx;
+          const col = isAct ? fn.color : "rgba(99,102,241,0.12)";
+          const straight = Math.abs(x1-x2)<5;
+          const path = straight
+            ? `M${x1},${y1} C${x1},${(y1+y2)/2} ${x2},${(y1+y2)/2} ${x2},${y2}`
+            : `M${x1},${y1} V${(y1+y2)/2} H${x2} V${y2}`;
+          return (
+            <g key={i}>
+              <path d={path} fill="none" stroke={col}
+                strokeWidth={isAct?1.8:0.8} strokeDasharray={isAct?"none":"3 5"}
+                style={{transition:"all 0.5s", filter:isAct?`drop-shadow(0 0 3px ${fn.color})`:"none"}}/>
+              {isAct && (
+                <circle r="3.5" fill={fn.color} opacity="0.95"
+                  style={{filter:`drop-shadow(0 0 5px ${fn.color})`}}>
+                  <animateMotion dur="1.4s" repeatCount="indefinite" path={path}/>
+                </circle>
+              )}
+              {e.label && (
+                <text x={(x1+x2)/2+(x2>x1?10:-10)} y={(y1+y2)/2-2}
+                  fill={isAct?fn.color:"rgba(148,163,184,0.25)"}
+                  fontSize="7" fontWeight="800" fontFamily="DM Sans,sans-serif"
+                  style={{transition:"all 0.5s"}}>
+                  {e.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+        {nodes.map((n, i) => {
+          const isAct = edges.some((e,ei)=>ei===activeIdx&&(e.f===i||e.t===i));
+          const x=cx(n), y=cy(n), col=n.color;
+          const glow = isAct ? `drop-shadow(0 0 8px ${col}77)` : "none";
+          if (n.type==="oval") return (
+            <g key={i} style={{transition:"all 0.5s"}}>
+              <ellipse cx={x} cy={y+NH/2} rx={NW/2} ry={NH/2-3}
+                fill={isAct?`${col}20`:"rgba(255,255,255,0.025)"}
+                stroke={isAct?col:`${col}35`} strokeWidth={isAct?1.5:0.8}
+                style={{filter:glow,transition:"all 0.5s"}}/>
+              <text x={x} y={y+NH/2+4} textAnchor="middle"
+                fontSize="8.5" fontWeight="700" fill={isAct?col:`${col}55`}
+                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>
+                {n.label}
+              </text>
+            </g>
+          );
+          if (n.type==="diamond") {
+            const hw=NW/2-12, hh=DH/2;
+            return (
+              <g key={i}>
+                <polygon points={`${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}`}
+                  fill={isAct?`${col}20`:"rgba(255,255,255,0.025)"}
+                  stroke={isAct?col:`${col}35`} strokeWidth={isAct?1.5:0.8}
+                  style={{filter:glow,transition:"all 0.5s"}}/>
+                <text x={x} y={y+4} textAnchor="middle"
+                  fontSize="8" fontWeight="700" fill={isAct?col:`${col}55`}
+                  fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>
+                  {n.label}
+                </text>
+              </g>
+            );
+          }
+          return (
+            <g key={i}>
+              <rect x={x-NW/2} y={y} width={NW} height={NH} rx="7"
+                fill={isAct?`${col}18`:"rgba(255,255,255,0.025)"}
+                stroke={isAct?col:`${col}30`} strokeWidth={isAct?1.5:0.8}
+                style={{filter:glow,transition:"all 0.5s"}}/>
+              <rect x={x-NW/2} y={y} width={NW} height={isAct?3:2} rx="7"
+                fill={isAct?col:`${col}30`} style={{transition:"all 0.5s"}}/>
+              <rect x={x-NW/2} y={y+1} width={NW} height={isAct?2:1}
+                fill={isAct?col:`${col}30`} style={{transition:"all 0.5s"}}/>
+              <text x={x} y={y+NH/2+4} textAnchor="middle"
+                fontSize="8.5" fontWeight="600" fill={isAct?"rgba(255,255,255,0.85)":`rgba(148,163,184,0.28)`}
+                fontFamily="DM Sans,sans-serif" style={{transition:"all 0.5s"}}>
+                {n.label}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
+  // Purpose badges floating at bottom
+  const badges = [
+    { x:60,  y:"91%", text:"📄 → 🔀  Document to Flowchart", color:"#6366F1", anim:"badgeDrift1 7s ease-in-out infinite" },
+    { x:"73%",y:"89%",text:"🤖  AI-Powered Extraction",      color:"#8B5CF6", anim:"badgeDrift2 8s 0.5s ease-in-out infinite" },
+    { x:"73%",y:"11%",text:"📊  Export to Word / PDF / PPT", color:"#06B6D4", anim:"badgeDrift3 6s 1s ease-in-out infinite" },
+    { x:22,   y:"52%",text:"👥  Actor & Role Mapping",       color:"#10B981", anim:"badgeDrift1 9s 1.5s ease-in-out infinite" },
+  ];
+
   return (
-    <>
-      {/* Connector lines */}
-      <svg style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:1 }}>
-        <line x1="9%" y1="14%" x2="9%" y2="72%" stroke="rgba(99,102,241,0.08)" strokeWidth="1" strokeDasharray="4 6" style={{ animation:"connectorPulse 4s ease-in-out infinite" }}/>
-        <line x1="92%" y1="27%" x2="92%" y2="62%" stroke="rgba(245,158,11,0.07)" strokeWidth="1" strokeDasharray="4 6" style={{ animation:"connectorPulse 5s 1s ease-in-out infinite" }}/>
-      </svg>
-      {nodes.map((n, i) => (
-        <div key={i} className="ls-float-node"
-          style={{ ...n.style, background:n.bg, borderColor:`${n.color}30`, color:n.color }}>
-          {n.label}
-        </div>
-      ))}
-    </>
+    <svg style={{position:"fixed",inset:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:1,overflow:"visible"}}>
+      {/* Left flowchart */}
+      <g opacity="0.6" style={{animation:"chartDriftL 22s ease-in-out infinite"}}>
+        {renderChart(LN, LE, 30, 50, activePath % LE.length)}
+      </g>
+
+      {/* Right flowchart — positioned right side using foreignObject trick via translate */}
+      <g opacity="0.5" style={{animation:"chartDriftR 26s ease-in-out infinite"}}>
+        <g transform="translate(calc(100vw - 210px), 30)">
+          {renderChart(RN, RE, 0, 0, activePath % RE.length)}
+        </g>
+      </g>
+
+      {/* Purpose badges */}
+      {badges.map((b,i) => {
+        const bw = 210;
+        return (
+          <g key={i} style={{animation:b.anim}}>
+            <rect x={typeof b.x==="number"?b.x:0} y={-14} width={bw} height={22} rx={11}
+              fill="rgba(10,12,28,0.75)" stroke={`${b.color}45`} strokeWidth="1"
+              style={typeof b.x==="string"?{transform:`translateX(${b.x})`}:{}}/>
+            <text x={typeof b.x==="number"?b.x+bw/2:bw/2} y={2}
+              textAnchor="middle" fontSize="9" fontWeight="700" fill={b.color}
+              fontFamily="DM Sans,sans-serif"
+              style={typeof b.x==="string"?{transform:`translateX(${b.x})`}:{}}>
+              {b.text}
+            </text>
+          </g>
+        );
+      })}
+
+      <style>{`
+        @keyframes chartDriftL {
+          0%,100%{transform:translate(0,0)} 33%{transform:translate(8px,-16px)} 66%{transform:translate(-5px,10px)}
+        }
+        @keyframes chartDriftR {
+          0%,100%{transform:translate(0,0)} 33%{transform:translate(-10px,14px)} 66%{transform:translate(6px,-8px)}
+        }
+        @keyframes badgeDrift1 {
+          0%,100%{transform:translateY(0);opacity:.65} 50%{transform:translateY(-10px);opacity:.95}
+        }
+        @keyframes badgeDrift2 {
+          0%,100%{transform:translateY(0);opacity:.55} 50%{transform:translateY(10px);opacity:.85}
+        }
+        @keyframes badgeDrift3 {
+          0%,100%{transform:translateY(0);opacity:.6} 50%{transform:translateY(-7px);opacity:.9}
+        }
+      `}</style>
+    </svg>
   );
 }
 
