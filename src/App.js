@@ -1665,7 +1665,13 @@ export default function App() {
     return "login";
   };
   const [screen, setScreen] = useState(getInitialScreen);
-  const [username, setUsername] = useState(()=>LS.get(KEYS.SESSION)?.username||"");
+  // Safely extract username string (guards against old object accidentally stored)
+  const [username, setUsername] = useState(() => {
+    const session = LS.get(KEYS.SESSION);
+    const raw = session?.username;
+    if (raw && typeof raw === "object") return raw.username || "";
+    return typeof raw === "string" ? raw : "";
+  });
   const [apiKey, setApiKey] = useState(()=>LS.get(KEYS.APIKEY)||"");
   const [history, setHistory] = useState(()=>LS.get(KEYS.HISTORY)||[]);
   const [currentData, setCurrentData] = useState(null);
@@ -1675,6 +1681,22 @@ export default function App() {
   const [progressPct, setProgressPct] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [showHistory, setShowHistory] = useState(true);
+
+  // ── Sanitize localStorage on mount ──────────────────────────────────────────
+  useEffect(() => {
+    // Fix session if username was accidentally stored as an object
+    const session = LS.get(KEYS.SESSION);
+    if (session && typeof session.username === "object") {
+      const fixed = { ...session, username: session.username?.username || "" };
+      LS.set(KEYS.SESSION, fixed);
+      setUsername(fixed.username);
+    }
+    // Fix user record if it somehow got double-wrapped
+    const user = LS.get(KEYS.USER);
+    if (user && typeof user.username === "object") {
+      LS.set(KEYS.USER, { username: user.username?.username || "", passwordHash: user.passwordHash });
+    }
+  }, []);
 
   const handleLogin = (uname, hasKey) => { setUsername(uname); if(hasKey){setApiKey(LS.get(KEYS.APIKEY));setScreen("app");}else setScreen("apisetup"); };
   const handleApiDone = (key) => { setApiKey(key); setScreen("app"); };
@@ -1714,7 +1736,7 @@ export default function App() {
           <span className="nav-name">FlowScribe</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          <div style={{fontSize:"13px",color:"var(--text3)",fontWeight:500}}>👤 {username}</div>
+          <div style={{fontSize:"13px",color:"var(--text3)",fontWeight:500}}>👤 {typeof username === "string" ? username : ""}</div>
           <button className="btn btn-secondary" onClick={()=>setShowHistory(v=>!v)} style={{padding:"7px 12px",fontSize:"12px"}}>{showHistory?"Hide":"Show"} History</button>
           {stage==="result"&&<button className="btn btn-secondary" onClick={handleNew} style={{padding:"7px 14px",fontSize:"12px"}}>+ New</button>}
           <button className="btn btn-secondary" onClick={handleLogout} style={{padding:"7px 14px",fontSize:"12px"}}>Sign Out</button>
