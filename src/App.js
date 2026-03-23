@@ -4,7 +4,7 @@ import ReactFlow, {
   useNodesState, useEdgesState,
   MarkerType, Handle, Position, ReactFlowProvider
 } from 'reactflow';
-import 'reactflow/dist/style.css';
+import 'reactflow/dist/base.css';
 
 const COLORS = ["#6366F1","#8B5CF6","#06B6D4","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6"];
 
