@@ -1,4 +1,10 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import ReactFlow, {
+  Background, Controls, MiniMap,
+  useNodesState, useEdgesState,
+  MarkerType, Handle, Position, ReactFlowProvider
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 
 const COLORS = ["#6366F1","#8B5CF6","#06B6D4","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6"];
 
@@ -183,220 +189,362 @@ const GCSS = `
 `;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ── SVG FLOWCHART ENGINE  (fixed text wrap + edit mode) ───────────────────────
-// ══════════════════════════════════════════════════════════════════════════════
+// ── REACTFLOW FLOWCHART ENGINE ────────────────────────────────────────────────
 
-const NODE_W    = 220;
-const NODE_H    = 72;
-const DEC_W     = 200;
-const DEC_H     = 72;
-const LEVEL_GAP = 110;
-const BRANCH_GAP= 280;
-
-// Wrap text into lines fitting maxW chars
-function wrapText(text, maxChars) {
-  if (!text) return [""];
-  const words = text.split(" ");
-  const lines = [];
-  let cur = "";
-  words.forEach(w => {
-    if ((cur + " " + w).trim().length <= maxChars) {
-      cur = (cur + " " + w).trim();
-    } else {
-      if (cur) lines.push(cur);
-      cur = w.substring(0, maxChars);
-    }
-  });
-  if (cur) lines.push(cur);
-  return lines.slice(0, 3); // max 3 lines
-}
-
-// Render multi-line SVG text centered
-function SvgText({ x, y, text, fontSize, fontWeight, fill, maxChars, lineH, fontFamily }) {
-  const lines = wrapText(text, maxChars || 20);
-  const totalH = lines.length * (lineH || (fontSize * 1.35));
-  const startY = y - totalH / 2 + (lineH || (fontSize * 1.35)) * 0.7;
+// ── CUSTOM NODE: PROCESS ──────────────────────────────────────────────────────
+function ProcessNode({ data, selected }) {
+  const color = data.color || "#6366F1";
+  const processIdx = data.processIdx;
   return (
     <>
-      {lines.map((l, i) => (
-        <text key={i} x={x} y={startY + i * (lineH || (fontSize * 1.35))}
-          textAnchor="middle" fontSize={fontSize} fontWeight={fontWeight || "600"}
-          fill={fill} fontFamily={fontFamily || "Plus Jakarta Sans, sans-serif"}
-          style={{ userSelect:"none" }}>
-          {l}
-        </text>
-      ))}
+      <Handle type="target" position={Position.Top} style={{background:color,width:10,height:10,border:"2px solid white"}}/>
+      <div onDoubleClick={()=>data.onEdit(data)}
+        style={{
+          background:"white", borderRadius:"14px", width:"220px",
+          border:`2px solid ${selected?color:"#E4E7F0"}`,
+          boxShadow: selected
+            ? `0 0 0 4px ${color}22, 0 8px 30px rgba(99,102,241,0.2)`
+            : "0 4px 16px rgba(99,102,241,0.1)",
+          cursor:"pointer", overflow:"hidden", transition:"all 0.2s",
+          fontFamily:"Plus Jakarta Sans, sans-serif",
+        }}>
+        {/* Top bar */}
+        <div style={{height:"4px",background:color,width:"100%"}}/>
+        <div style={{padding:"12px 14px 12px 14px",display:"flex",alignItems:"center",gap:"10px",minHeight:"68px"}}>
+          {/* Icon */}
+          <div style={{width:"36px",height:"36px",borderRadius:"9px",
+            background:`${color}14`,border:`1.5px solid ${color}28`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:"18px",flexShrink:0}}>
+            {data.icon||"📋"}
+          </div>
+          {/* Text */}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:"12px",fontWeight:700,color:"#0F172A",lineHeight:1.3,
+              wordBreak:"break-word",marginBottom:"3px"}}>
+              {data.label}
+            </div>
+            {data.actorName && (
+              <div style={{fontSize:"10px",fontWeight:600,color:color,
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                💼 {data.actorName}
+              </div>
+            )}
+          </div>
+          {/* Badge */}
+          {processIdx >= 0 && (
+            <div style={{background:color,color:"white",borderRadius:"6px",
+              padding:"2px 6px",fontSize:"9px",fontWeight:800,flexShrink:0}}>
+              {String(processIdx+1).padStart(2,"0")}
+            </div>
+          )}
+        </div>
+        {/* Edit hint */}
+        <div style={{padding:"4px 14px 6px",borderTop:"1px dashed #F1F5F9",
+          fontSize:"10px",color:"#CBD5E1",textAlign:"right"}}>
+          ✏️ double-click to edit
+        </div>
+      </div>
+      <Handle type="source" position={Position.Bottom} style={{background:color,width:10,height:10,border:"2px solid white"}}/>
+      <Handle type="source" position={Position.Left}  id="left"  style={{background:color,width:10,height:10,border:"2px solid white"}}/>
+      <Handle type="source" position={Position.Right} id="right" style={{background:color,width:10,height:10,border:"2px solid white"}}/>
     </>
   );
 }
 
-function layoutGraph(nodes, edges) {
-  if (!nodes?.length) return { positioned:[], svgEdges:[], width:400, height:400 };
+// ── CUSTOM NODE: DECISION ─────────────────────────────────────────────────────
+function DecisionNode({ data, selected }) {
+  const color = "#F59E0B";
+  return (
+    <>
+      <Handle type="target" position={Position.Top} style={{background:color,width:10,height:10,border:"2px solid white",zIndex:10}}/>
+      <div onDoubleClick={()=>data.onEdit(data)}
+        style={{
+          width:"160px", height:"80px", cursor:"pointer",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          position:"relative", fontFamily:"Plus Jakarta Sans, sans-serif",
+        }}>
+        {/* Diamond shape via clip-path */}
+        <div style={{
+          position:"absolute", inset:0,
+          background: selected ? `linear-gradient(135deg,${color},#D97706)` : color,
+          clipPath:"polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+          boxShadow: selected ? `0 0 0 3px ${color}44` : "0 4px 16px rgba(245,158,11,0.3)",
+          transition:"all 0.2s",
+        }}/>
+        <div style={{position:"relative",zIndex:1,textAlign:"center",padding:"0 20px"}}>
+          <div style={{fontSize:"11px",fontWeight:700,color:"white",lineHeight:1.3,
+            wordBreak:"break-word"}}>
+            {data.label}
+          </div>
+        </div>
+      </div>
+      <Handle type="source" position={Position.Left}  id="no"  style={{background:"#EF4444",width:10,height:10,border:"2px solid white",top:"50%"}}/>
+      <Handle type="source" position={Position.Right} id="yes" style={{background:"#10B981",width:10,height:10,border:"2px solid white",top:"50%"}}/>
+      <Handle type="source" position={Position.Bottom} id="bottom" style={{background:color,width:10,height:10,border:"2px solid white"}}/>
+    </>
+  );
+}
 
+// ── CUSTOM NODE: START / END ──────────────────────────────────────────────────
+function OvalNode({ data, selected }) {
+  const isEnd = data.nodeType === "end";
+  const color = isEnd ? "#EF4444" : "#10B981";
+  return (
+    <>
+      {isEnd && <Handle type="target" position={Position.Top} style={{background:color,width:10,height:10,border:"2px solid white"}}/>}
+      <div style={{
+        background: `linear-gradient(135deg, ${color}, ${isEnd?"#DC2626":"#059669"})`,
+        borderRadius:"40px", padding:"12px 28px",
+        color:"white", fontWeight:700, fontSize:"14px",
+        fontFamily:"Plus Jakarta Sans,sans-serif",
+        boxShadow: selected
+          ? `0 0 0 4px ${color}33, 0 8px 24px ${color}44`
+          : `0 4px 16px ${color}44`,
+        border: selected ? `2px solid white` : "2px solid transparent",
+        transition:"all 0.2s", cursor:"default", whiteSpace:"nowrap",
+      }}>
+        {data.label || (isEnd ? "End" : "Start")}
+      </div>
+      {!isEnd && <Handle type="source" position={Position.Bottom} style={{background:color,width:10,height:10,border:"2px solid white"}}/>}
+    </>
+  );
+}
+
+const nodeTypes = {
+  processNode:  ProcessNode,
+  decisionNode: DecisionNode,
+  ovalNode:     OvalNode,
+};
+
+// ── LAYOUT: BFS auto-position ─────────────────────────────────────────────────
+function buildReactFlowElements(data, onEdit) {
+  const nodes = data.nodes || [];
+  const edges = data.edges || [];
+  const actors = data.actors || [];
+
+  // BFS layout
   const children = {}, parents = {};
-  nodes.forEach(n => { children[n.id]=[]; parents[n.id]=[]; });
-  edges.forEach(e => {
-    if (children[e.from]) children[e.from].push({ to:e.to, label:e.label||"" });
-    if (parents[e.to])    parents[e.to].push(e.from);
+  nodes.forEach(n=>{ children[n.id]=[]; parents[n.id]=[]; });
+  edges.forEach(e=>{
+    if(children[e.from]) children[e.from].push(e.to);
+    if(parents[e.to])    parents[e.to].push(e.from);
   });
 
-  // BFS levels
   const levels = {};
   const startNode = nodes.find(n=>n.type==="start")||nodes[0];
-  const queue = [{ id:startNode.id, level:0 }];
+  if (!startNode) return { rfNodes:[], rfEdges:[] };
+
+  const queue = [{id:startNode.id, level:0}];
   const visited = new Set();
-  while (queue.length) {
-    const { id, level } = queue.shift();
-    if (visited.has(id)) continue;
+  while(queue.length){
+    const {id,level} = queue.shift();
+    if(visited.has(id)) continue;
     visited.add(id);
     levels[id] = Math.max(levels[id]||0, level);
-    (children[id]||[]).forEach(c => { if (!visited.has(c.to)) queue.push({ id:c.to, level:level+1 }); });
+    (children[id]||[]).forEach(cid=>{
+      if(!visited.has(cid)) queue.push({id:cid, level:level+1});
+    });
   }
-  nodes.forEach(n => { if (levels[n.id]===undefined) levels[n.id]=0; });
+  nodes.forEach(n=>{ if(levels[n.id]===undefined) levels[n.id]=0; });
 
   const byLevel = {};
-  nodes.forEach(n => {
+  nodes.forEach(n=>{
     const l = levels[n.id];
-    if (!byLevel[l]) byLevel[l] = [];
+    if(!byLevel[l]) byLevel[l]=[];
     byLevel[l].push(n.id);
   });
 
-  const maxLevel = Math.max(...Object.values(levels));
-  const VGAP = LEVEL_GAP + NODE_H;
+  const NODE_W=240, NODE_H=100, DEC_W=180, DEC_H=100;
+  const H_GAP=80, V_GAP=80;
   const positions = {};
 
-  for (let l=0; l<=maxLevel; l++) {
-    const grp = byLevel[l]||[];
-    grp.forEach((id,i) => {
-      const totalW = grp.length * NODE_W + (grp.length-1) * BRANCH_GAP;
+  Object.keys(byLevel).sort((a,b)=>a-b).forEach(l=>{
+    const grp = byLevel[l];
+    const totalW = grp.length*(NODE_W+H_GAP) - H_GAP;
+    grp.forEach((id,i)=>{
+      const n = nodes.find(n=>n.id===id);
+      const w = n?.type==="decision" ? DEC_W : NODE_W;
       positions[id] = {
-        x: 400 + i*(NODE_W+BRANCH_GAP) - (grp.length-1)*(NODE_W+BRANCH_GAP)/2,
-        y: 60 + l * VGAP,
+        x: -totalW/2 + i*(NODE_W+H_GAP) + (NODE_W-w)/2,
+        y: Number(l) * (NODE_H+V_GAP),
       };
     });
-  }
+  });
 
-  const positioned = nodes.map(n => ({ ...n, ...positions[n.id] }));
-  const maxY = Math.max(...positioned.map(n=>(n.y||0)+NODE_H));
-  const maxX = Math.max(...positioned.map(n=>(n.x||0)+NODE_W));
-  return { positioned, svgEdges:edges, width:Math.max(maxX+260,800), height:maxY+140 };
+  // Process index for badges
+  const processNodes = nodes.filter(n=>n.type==="process");
+
+  // Build RF nodes
+  const rfNodes = nodes.map(n=>{
+    const actor = actors.find(a=>a.id===(n.actor||n.actorId));
+    const color = n.type==="decision" ? "#F59E0B"
+      : n.type==="start" ? "#10B981"
+      : n.type==="end"   ? "#EF4444"
+      : actor?.color || COLORS[0];
+
+    const rfType = n.type==="start"||n.type==="end" ? "ovalNode"
+      : n.type==="decision" ? "decisionNode"
+      : "processNode";
+
+    return {
+      id: n.id,
+      type: rfType,
+      position: positions[n.id]||{x:0,y:0},
+      data: {
+        ...n,
+        nodeType: n.type,
+        color,
+        actorName: actor?.name||"",
+        processIdx: processNodes.indexOf(n),
+        onEdit,
+      },
+      style: { zIndex: n.type==="decision" ? 5 : 1 },
+    };
+  });
+
+  // Build RF edges
+  const rfEdges = edges.map((e,i)=>{
+    const isYes = e.label==="YES";
+    const isNo  = e.label==="NO";
+    const color = isYes?"#10B981":isNo?"#EF4444":"#6366F1";
+    const fromNode = nodes.find(n=>n.id===e.from);
+    const sourceHandle = fromNode?.type==="decision"
+      ? (isYes?"yes":isNo?"no":"bottom") : undefined;
+    return {
+      id: `e-${i}`,
+      source: e.from,
+      target: e.to,
+      sourceHandle,
+      label: e.label||"",
+      labelStyle: {
+        fill: color, fontWeight:700, fontSize:11,
+        fontFamily:"Plus Jakarta Sans,sans-serif",
+      },
+      labelBgStyle: {
+        fill: isYes?"#ECFDF5":isNo?"#FEF2F2":"#EEF2FF",
+        fillOpacity:1,
+      },
+      labelBgPadding: [6,4],
+      labelBgBorderRadius: 8,
+      style: { stroke:color, strokeWidth:2 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color,
+        width:18, height:18,
+      },
+      type: "smoothstep",
+      animated: false,
+    };
+  });
+
+  return { rfNodes, rfEdges };
 }
 
 // ── EDIT MODAL ────────────────────────────────────────────────────────────────
 function EditModal({ node, actors, onSave, onClose }) {
-  const [label, setLabel]       = useState(node.label||"");
-  const [desc,  setDesc]        = useState(node.description||"");
-  const [steps, setSteps]       = useState((node.steps||[]).join("\n"));
-  const [output,setOutput]      = useState(node.output||"");
-  const [note,  setNote]        = useState(node.note||"");
-  const [actorId,setActorId]    = useState(node.actor||node.actorId||"");
+  const [label,   setLabel]   = useState(node.label||"");
+  const [desc,    setDesc]    = useState(node.description||"");
+  const [steps,   setSteps]   = useState((node.steps||[]).join("\n"));
+  const [output,  setOutput]  = useState(node.output||"");
+  const [note,    setNote]    = useState(node.note||"");
+  const [actorId, setActorId] = useState(node.actor||node.actorId||"");
 
-  const save = () => {
-    onSave({
-      ...node,
-      label,
-      description: desc,
-      steps: steps.split("\n").map(s=>s.trim()).filter(Boolean),
-      output,
-      note,
-      actor: actorId,
-      actorId,
-    });
-  };
+  const save = () => onSave({
+    ...node, label, description:desc,
+    steps: steps.split("\n").map(s=>s.trim()).filter(Boolean),
+    output, note, actor:actorId, actorId,
+  });
 
-  const inputStyle = {
+  const iS = {
     width:"100%", fontFamily:"Plus Jakarta Sans,sans-serif", fontSize:"13px",
     color:"#0F172A", background:"#F8F9FF", border:"1.5px solid #E4E7F0",
     borderRadius:"9px", padding:"9px 12px", outline:"none",
-    transition:"border 0.2s", boxSizing:"border-box", marginBottom:"0",
+    boxSizing:"border-box", transition:"border 0.2s",
   };
-  const labelStyle = {
-    fontSize:"10px", fontWeight:"700", letterSpacing:"1.2px",
+  const lS = {
+    fontSize:"10px", fontWeight:700, letterSpacing:"1.2px",
     textTransform:"uppercase", color:"#94A3B8", marginBottom:"5px", display:"block",
   };
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:9999,
-      display:"flex", alignItems:"center", justifyContent:"center", padding:"16px",
-      backdropFilter:"blur(4px)", animation:"fadeIn 0.2s ease" }}>
-      <div style={{ background:"white", borderRadius:"20px", padding:"28px",
-        width:"100%", maxWidth:"500px", maxHeight:"90vh", overflowY:"auto",
-        boxShadow:"0 24px 80px rgba(0,0,0,0.25)", animation:"cardIn 0.3s cubic-bezier(0.34,1.3,0.64,1)" }}>
-
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"22px" }}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:99999,
+      display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
+      backdropFilter:"blur(4px)"}}>
+      <div style={{background:"white",borderRadius:"20px",padding:"28px",
+        width:"100%",maxWidth:"480px",maxHeight:"90vh",overflowY:"auto",
+        boxShadow:"0 24px 80px rgba(0,0,0,0.25)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"22px"}}>
           <div>
-            <div style={{ fontSize:"16px", fontWeight:"800", color:"#0F172A" }}>Edit Node</div>
-            <div style={{ fontSize:"12px", color:"#94A3B8", marginTop:"2px" }}>
-              {node.type==="decision"?"Decision node":"Process node"}
+            <div style={{fontSize:"16px",fontWeight:800}}>Edit Node</div>
+            <div style={{fontSize:"12px",color:"#94A3B8",marginTop:"2px"}}>
+              {node.type==="decision"?"Decision":"Process"} node
             </div>
           </div>
-          <button onClick={onClose} style={{ background:"#F1F5F9", border:"none", borderRadius:"10px",
-            width:"36px", height:"36px", cursor:"pointer", fontSize:"18px", color:"#64748B",
-            display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+          <button onClick={onClose} style={{background:"#F1F5F9",border:"none",
+            borderRadius:"10px",width:"36px",height:"36px",cursor:"pointer",fontSize:"18px",color:"#64748B"}}>×</button>
         </div>
 
-        <div style={{ marginBottom:"14px" }}>
-          <label style={labelStyle}>Label</label>
-          <input style={inputStyle} value={label} onChange={e=>setLabel(e.target.value)}
+        <div style={{marginBottom:"14px"}}>
+          <label style={lS}>Label</label>
+          <input style={iS} value={label} onChange={e=>setLabel(e.target.value)}
             onFocus={e=>e.target.style.borderColor="#6366F1"}
             onBlur={e=>e.target.style.borderColor="#E4E7F0"}
             placeholder="Node label"/>
         </div>
 
         {node.type==="process" && <>
-          {actors?.length>0 && (
-            <div style={{ marginBottom:"14px" }}>
-              <label style={labelStyle}>Actor / Owner</label>
-              <select style={{...inputStyle, cursor:"pointer"}} value={actorId}
-                onChange={e=>setActorId(e.target.value)}>
+          {actors?.length>0&&(
+            <div style={{marginBottom:"14px"}}>
+              <label style={lS}>Actor / Owner</label>
+              <select style={{...iS,cursor:"pointer"}} value={actorId} onChange={e=>setActorId(e.target.value)}>
                 <option value="">— None —</option>
                 {actors.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
           )}
-          <div style={{ marginBottom:"14px" }}>
-            <label style={labelStyle}>Description</label>
-            <textarea style={{...inputStyle, minHeight:"64px", resize:"vertical", lineHeight:1.5}}
+          <div style={{marginBottom:"14px"}}>
+            <label style={lS}>Description</label>
+            <textarea style={{...iS,minHeight:"60px",resize:"vertical",lineHeight:1.5}}
               value={desc} onChange={e=>setDesc(e.target.value)}
               onFocus={e=>e.target.style.borderColor="#6366F1"}
               onBlur={e=>e.target.style.borderColor="#E4E7F0"}
-              placeholder="What happens in this step?"/>
+              placeholder="What happens here?"/>
           </div>
-          <div style={{ marginBottom:"14px" }}>
-            <label style={labelStyle}>Steps (one per line)</label>
-            <textarea style={{...inputStyle, minHeight:"80px", resize:"vertical", lineHeight:1.6}}
+          <div style={{marginBottom:"14px"}}>
+            <label style={lS}>Steps (one per line)</label>
+            <textarea style={{...iS,minHeight:"72px",resize:"vertical",lineHeight:1.6}}
               value={steps} onChange={e=>setSteps(e.target.value)}
               onFocus={e=>e.target.style.borderColor="#6366F1"}
               onBlur={e=>e.target.style.borderColor="#E4E7F0"}
-              placeholder="Step 1&#10;Step 2&#10;Step 3"/>
+              placeholder={"Step 1\nStep 2\nStep 3"}/>
           </div>
-          <div style={{ marginBottom:"14px" }}>
-            <label style={labelStyle}>Output</label>
-            <input style={inputStyle} value={output} onChange={e=>setOutput(e.target.value)}
+          <div style={{marginBottom:"14px"}}>
+            <label style={lS}>Output</label>
+            <input style={iS} value={output} onChange={e=>setOutput(e.target.value)}
               onFocus={e=>e.target.style.borderColor="#6366F1"}
               onBlur={e=>e.target.style.borderColor="#E4E7F0"}
               placeholder="What does this step produce?"/>
           </div>
-          <div style={{ marginBottom:"20px" }}>
-            <label style={labelStyle}>Note / Warning</label>
-            <input style={inputStyle} value={note} onChange={e=>setNote(e.target.value)}
+          <div style={{marginBottom:"20px"}}>
+            <label style={lS}>Note / Warning</label>
+            <input style={iS} value={note} onChange={e=>setNote(e.target.value)}
               onFocus={e=>e.target.style.borderColor="#6366F1"}
               onBlur={e=>e.target.style.borderColor="#E4E7F0"}
-              placeholder="Optional warning or note"/>
+              placeholder="Optional note or warning"/>
           </div>
         </>}
 
-        <div style={{ display:"flex", gap:"10px" }}>
-          <button onClick={onClose} style={{ flex:1, fontFamily:"Plus Jakarta Sans,sans-serif",
-            fontSize:"14px", fontWeight:"600", padding:"11px", borderRadius:"10px",
-            border:"1.5px solid #E4E7F0", background:"white", cursor:"pointer", color:"#64748B" }}>
+        <div style={{display:"flex",gap:"10px"}}>
+          <button onClick={onClose} style={{flex:1,fontFamily:"Plus Jakarta Sans,sans-serif",
+            fontSize:"14px",fontWeight:600,padding:"11px",borderRadius:"10px",
+            border:"1.5px solid #E4E7F0",background:"white",cursor:"pointer",color:"#64748B"}}>
             Cancel
           </button>
-          <button onClick={save} style={{ flex:2, fontFamily:"Plus Jakarta Sans,sans-serif",
-            fontSize:"14px", fontWeight:"700", padding:"11px", borderRadius:"10px",
-            border:"none", background:"linear-gradient(135deg,#4F46E5,#7C3AED)",
-            cursor:"pointer", color:"white",
-            boxShadow:"0 4px 14px rgba(99,102,241,0.4)" }}>
+          <button onClick={save} style={{flex:2,fontFamily:"Plus Jakarta Sans,sans-serif",
+            fontSize:"14px",fontWeight:700,padding:"11px",borderRadius:"10px",
+            border:"none",background:"linear-gradient(135deg,#4F46E5,#7C3AED)",
+            cursor:"pointer",color:"white",boxShadow:"0 4px 14px rgba(99,102,241,0.4)"}}>
             Save Changes ✓
           </button>
         </div>
@@ -405,329 +553,79 @@ function EditModal({ node, actors, onSave, onClose }) {
   );
 }
 
-// ── SVG FLOWCHART ─────────────────────────────────────────────────────────────
+// ── MAIN FLOWCHART COMPONENT ──────────────────────────────────────────────────
 function SvgFlowchart({ data, onDataChange }) {
-  const [zoom,    setZoom]    = useState(1);
   const [editing, setEditing] = useState(null);
-  const [selected,setSelected]= useState(null);
 
-  const { positioned, svgEdges, width, height } = useMemo(
-    () => layoutGraph(data.nodes, data.edges),
-    [data.nodes, data.edges]
+  const handleEdit = useCallback((nodeData) => {
+    if(nodeData.nodeType==="start"||nodeData.nodeType==="end") return;
+    // Find original node from data
+    const original = data.nodes.find(n=>n.id===nodeData.id);
+    if(original) setEditing(original);
+  }, [data.nodes]);
+
+  const { rfNodes: initNodes, rfEdges: initEdges } = useMemo(
+    () => buildReactFlowElements(data, handleEdit),
+    [data, handleEdit]
   );
 
-  const getColor = useCallback((node) => {
-    if (node.type==="start") return "#10B981";
-    if (node.type==="end")   return "#EF4444";
-    if (node.type==="decision") return "#F59E0B";
-    const actor = data.actors?.find(a=>a.id===node.actor||a.id===node.actorId);
-    return actor?.color||"#6366F1";
-  }, [data.actors]);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(initNodes);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(initEdges);
 
-  const handleEdit = (node) => {
-    if (node.type==="start"||node.type==="end") return;
-    setEditing(node);
-  };
+  // Rebuild when data changes (e.g. after edit)
+  useEffect(() => {
+    const { rfNodes: newN, rfEdges: newE } = buildReactFlowElements(data, handleEdit);
+    setRfNodes(newN);
+    setRfEdges(newE);
+  }, [data, handleEdit]);
 
   const handleSave = (updatedNode) => {
-    const newNodes = data.nodes.map(n => n.id===updatedNode.id ? updatedNode : n);
-    onDataChange({ ...data, nodes:newNodes });
+    const newNodes = data.nodes.map(n=>n.id===updatedNode.id?updatedNode:n);
+    onDataChange({...data, nodes:newNodes});
     setEditing(null);
   };
 
-  const selectedNode = positioned.find(n=>n.id===selected);
-  const selActor = selectedNode ? data.actors?.find(a=>a.id===(selectedNode.actor||selectedNode.actorId)) : null;
-
-  // Draw edge path
-  const getPath = (edge) => {
-    const fn = positioned.find(n=>n.id===edge.from);
-    const tn = positioned.find(n=>n.id===edge.to);
-    if (!fn||!tn) return null;
-
-    let x1=fn.x, y1=fn.type==="decision"?fn.y+DEC_H/2:fn.y+NODE_H;
-    let x2=tn.x, y2=tn.type==="decision"?tn.y-DEC_H/2:tn.y;
-
-    const isBranch = Math.abs(x1-x2) > 30;
-    if (fn.type==="decision" && isBranch) {
-      const side = x2>x1 ? 1 : -1;
-      x1 = fn.x + side*(DEC_W/2);
-      y1 = fn.y;
-      return `M${x1},${y1} H${x2} V${y2}`;
-    }
-    const my = (y1+y2)/2;
-    return `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
-  };
-
-  const getEdgeLabelPos = (edge) => {
-    const fn = positioned.find(n=>n.id===edge.from);
-    const tn = positioned.find(n=>n.id===edge.to);
-    if (!fn||!tn||!edge.label) return null;
-    if (fn.type==="decision" && Math.abs(fn.x-tn.x)>30) {
-      const side = tn.x>fn.x ? 1 : -1;
-      return { x: fn.x + side*(DEC_W/2+28), y: fn.y };
-    }
-    const y1 = fn.type==="decision"?fn.y+DEC_H/2:fn.y+NODE_H;
-    const y2 = tn.type==="decision"?tn.y-DEC_H/2:tn.y;
-    return { x: fn.x+18, y: (y1+y2)/2 };
-  };
-
   return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
-
-      {/* Toolbar */}
-      <div style={{ display:"flex", alignItems:"center", gap:"8px", padding:"10px 18px",
-        borderBottom:"1px solid var(--border)", background:"white", flexShrink:0, flexWrap:"wrap" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
-          <button onClick={()=>setZoom(z=>Math.max(0.3,z-0.1))}
-            style={{ width:"30px",height:"30px",border:"1.5px solid var(--border)",borderRadius:"7px",
-              background:"white",cursor:"pointer",fontSize:"17px",color:"var(--text2)",display:"flex",alignItems:"center",justifyContent:"center" }}>−</button>
-          <span style={{ fontSize:"12px",fontWeight:700,color:"var(--indigo)",minWidth:"38px",textAlign:"center" }}>{Math.round(zoom*100)}%</span>
-          <button onClick={()=>setZoom(z=>Math.min(2.5,z+0.1))}
-            style={{ width:"30px",height:"30px",border:"1.5px solid var(--border)",borderRadius:"7px",
-              background:"white",cursor:"pointer",fontSize:"17px",color:"var(--text2)",display:"flex",alignItems:"center",justifyContent:"center" }}>+</button>
-          <button onClick={()=>setZoom(1)}
-            style={{ fontSize:"11px",fontWeight:600,padding:"5px 10px",border:"1.5px solid var(--border)",
-              borderRadius:"7px",background:"white",cursor:"pointer",color:"var(--text2)" }}>Reset</button>
-        </div>
-        <div style={{ flex:1 }}/>
-        <div style={{ display:"flex", gap:"10px", fontSize:"11.5px", color:"var(--text3)", flexWrap:"wrap", alignItems:"center" }}>
-          <span>🟢 Start/End</span><span>🟡 Decision</span><span>🟣 Process</span>
-          <span style={{ fontStyle:"italic" }}>✏️ Double-click to edit</span>
-        </div>
-      </div>
-
-      {/* Canvas */}
-      <div style={{ flex:1, overflow:"auto", background:"#F8F9FF" }}>
-        <div style={{ transform:`scale(${zoom})`, transformOrigin:"top center",
-          transition:"transform 0.2s", padding:"24px", minWidth:"fit-content" }}>
-          <svg width={width} height={height} style={{ display:"block", margin:"0 auto", overflow:"visible" }}>
-            <defs>
-              <marker id="arr-default" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
-                <path d="M0,0 L0,7 L9,3.5 z" fill="#6366F1" opacity="0.7"/>
-              </marker>
-              <marker id="arr-yes" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
-                <path d="M0,0 L0,7 L9,3.5 z" fill="#10B981"/>
-              </marker>
-              <marker id="arr-no" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
-                <path d="M0,0 L0,7 L9,3.5 z" fill="#EF4444"/>
-              </marker>
-              <filter id="node-shadow">
-                <feDropShadow dx="0" dy="3" stdDeviation="7" floodColor="rgba(99,102,241,0.13)"/>
-              </filter>
-              <filter id="node-shadow-sel">
-                <feDropShadow dx="0" dy="6" stdDeviation="14" floodColor="rgba(99,102,241,0.38)"/>
-              </filter>
-              {/* Grid dots */}
-              <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                <circle cx="20" cy="20" r="1" fill="#DDE1F0"/>
-              </pattern>
-            </defs>
-
-            {/* Background dots */}
-            <rect width={width} height={height} fill="url(#dots)"/>
-
-            {/* ── EDGES ── */}
-            {svgEdges.map((edge,i) => {
-              const path = getPath(edge);
-              if (!path) return null;
-              const isYes = edge.label==="YES";
-              const isNo  = edge.label==="NO";
-              const color = isYes?"#10B981":isNo?"#EF4444":"#6366F1";
-              const marker= isYes?"arr-yes":isNo?"arr-no":"arr-default";
-              const lp    = getEdgeLabelPos(edge);
-              return (
-                <g key={i}>
-                  <path d={path} fill="none" stroke={color} strokeWidth="2"
-                    strokeOpacity="0.65" markerEnd={`url(#${marker})`}/>
-                  {lp && (
-                    <g>
-                      <rect x={lp.x-18} y={lp.y-11} width="36" height="20" rx="10"
-                        fill={isYes?"#ECFDF5":isNo?"#FEF2F2":"#EEF2FF"}
-                        stroke={isYes?"#6EE7B7":isNo?"#FCA5A5":"#C7D2FE"} strokeWidth="1.2"/>
-                      <text x={lp.x} y={lp.y+4} textAnchor="middle"
-                        fontSize="9.5" fontWeight="800"
-                        fill={isYes?"#059669":isNo?"#DC2626":"#4F46E5"}
-                        fontFamily="Plus Jakarta Sans,sans-serif">
-                        {edge.label}
-                      </text>
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* ── NODES ── */}
-            {positioned.map(node => {
-              const color = getColor(node);
-              const isSel = selected===node.id;
-              const filt  = isSel?"url(#node-shadow-sel)":"url(#node-shadow)";
-              const canEdit = node.type!=="start"&&node.type!=="end";
-              const processIdx = positioned.filter(n=>n.type==="process").indexOf(node);
-
-              // ── START / END oval ──
-              if (node.type==="start"||node.type==="end") return (
-                <g key={node.id} style={{cursor:"default"}}>
-                  <ellipse cx={node.x} cy={node.y+NODE_H/2}
-                    rx={NODE_W/2} ry={NODE_H/2-4}
-                    fill={color} filter={filt}/>
-                  <text x={node.x} y={node.y+NODE_H/2+5}
-                    textAnchor="middle" fontSize="13" fontWeight="700"
-                    fill="white" fontFamily="Plus Jakarta Sans,sans-serif">
-                    {node.label||(node.type==="end"?"End":"Start")}
-                  </text>
-                </g>
-              );
-
-              // ── DECISION diamond ──
-              if (node.type==="decision") {
-                const hw=DEC_W/2, hh=DEC_H/2;
-                const pts=`${node.x},${node.y-hh} ${node.x+hw},${node.y} ${node.x},${node.y+hh} ${node.x-hw},${node.y}`;
-                const labelLines = wrapText(node.label||"", 16);
-                const lineH = 14;
-                const totalH = labelLines.length * lineH;
-                return (
-                  <g key={node.id} style={{cursor:canEdit?"pointer":"default"}}
-                    onClick={()=>setSelected(isSel?null:node.id)}
-                    onDoubleClick={()=>handleEdit(node)}>
-                    <polygon points={pts} fill={color} filter={filt}
-                      stroke={isSel?"white":"none"} strokeWidth="2.5"/>
-                    {/* Edit icon */}
-                    {canEdit && <text x={node.x+hw-10} y={node.y-hh+14} fontSize="10" fill="rgba(255,255,255,0.7)">✏️</text>}
-                    {labelLines.map((l,li)=>(
-                      <text key={li} x={node.x} y={node.y - totalH/2 + li*lineH + lineH*0.75}
-                        textAnchor="middle" fontSize="11" fontWeight="700"
-                        fill="white" fontFamily="Plus Jakarta Sans,sans-serif">
-                        {l}
-                      </text>
-                    ))}
-                  </g>
-                );
-              }
-
-              // ── PROCESS rect ──
-              const actor = data.actors?.find(a=>a.id===(node.actor||node.actorId));
-              const labelLines = wrapText(node.label||"", 18);
-              const actorName  = actor?.name||"";
-              const actorLines = wrapText(actorName, 22);
-
-              return (
-                <g key={node.id} style={{cursor:"pointer"}}
-                  onClick={()=>setSelected(isSel?null:node.id)}
-                  onDoubleClick={()=>handleEdit(node)}>
-                  {/* Card shadow */}
-                  <rect x={node.x-NODE_W/2+3} y={node.y+5} width={NODE_W} height={NODE_H}
-                    rx="14" fill="rgba(99,102,241,0.07)"/>
-                  {/* Card body */}
-                  <rect x={node.x-NODE_W/2} y={node.y} width={NODE_W} height={NODE_H}
-                    rx="14" fill="white" filter={filt}
-                    stroke={isSel?color:"#E4E7F0"} strokeWidth={isSel?2:1.5}/>
-                  {/* Top accent bar */}
-                  <rect x={node.x-NODE_W/2} y={node.y} width={NODE_W} height="4" rx="14" fill={color}/>
-                  <rect x={node.x-NODE_W/2} y={node.y+2} width={NODE_W} height="2" fill={color}/>
-                  {/* Icon circle */}
-                  <circle cx={node.x-NODE_W/2+28} cy={node.y+NODE_H/2}
-                    r="17" fill={`${color}14`} stroke={`${color}30`} strokeWidth="1.2"/>
-                  <text x={node.x-NODE_W/2+28} y={node.y+NODE_H/2+5}
-                    textAnchor="middle" fontSize="14" fontFamily="sans-serif">
-                    {node.icon||"📋"}
-                  </text>
-                  {/* Edit icon top-right */}
-                  <text x={node.x+NODE_W/2-22} y={node.y+18}
-                    textAnchor="middle" fontSize="11" opacity="0.45">✏️</text>
-                  {/* Step badge */}
-                  {processIdx>=0 && (
-                    <g>
-                      <rect x={node.x+NODE_W/2-34} y={node.y+8} width="28" height="17" rx="5" fill={color}/>
-                      <text x={node.x+NODE_W/2-20} y={node.y+20}
-                        textAnchor="middle" fontSize="9" fontWeight="800"
-                        fill="white" fontFamily="Plus Jakarta Sans,sans-serif">
-                        {String(processIdx+1).padStart(2,"0")}
-                      </text>
-                    </g>
-                  )}
-                  {/* Label — wrapped, max 2 lines */}
-                  {labelLines.map((l,li)=>(
-                    <text key={li}
-                      x={node.x-NODE_W/2+54}
-                      y={actor ? node.y+22+li*16 : node.y+NODE_H/2-4+li*16}
-                      fontSize="12" fontWeight="700" fill="#0F172A"
-                      fontFamily="Plus Jakarta Sans,sans-serif">
-                      {l}
-                    </text>
-                  ))}
-                  {/* Actor name — wrapped */}
-                  {actor && actorLines.map((l,li)=>(
-                    <text key={li}
-                      x={node.x-NODE_W/2+54}
-                      y={node.y+22+labelLines.length*16+li*13+4}
-                      fontSize="10" fontWeight="600" fill={color}
-                      fontFamily="Plus Jakarta Sans,sans-serif">
-                      {li===0?"💼 ":""}{l}
-                    </text>
-                  ))}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      </div>
-
-      {/* ── DETAIL PANEL ── */}
-      {selectedNode && selectedNode.type==="process" && (
-        <div style={{ background:"white", borderTop:"1.5px solid var(--border)",
-          padding:"16px 22px", flexShrink:0, maxHeight:"210px", overflowY:"auto",
-          animation:"slideUp 0.22s ease both" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"12px" }}>
-            <div style={{ width:"38px",height:"38px",borderRadius:"9px",
-              background:`${getColor(selectedNode)}12`,border:`1.5px solid ${getColor(selectedNode)}28`,
-              display:"flex",alignItems:"center",justifyContent:"center",fontSize:"19px" }}>
-              {selectedNode.icon||"📋"}
-            </div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:"14px",fontWeight:700 }}>{selectedNode.label}</div>
-              {selActor&&<div style={{ fontSize:"11px",color:getColor(selectedNode),fontWeight:600 }}>💼 {selActor.name}</div>}
-            </div>
-            <button onClick={()=>handleEdit(selectedNode)}
-              style={{ padding:"6px 14px",borderRadius:"8px",border:"1.5px solid #6366F1",
-                background:"#EEF2FF",color:"#4F46E5",fontSize:"12px",fontWeight:700,cursor:"pointer" }}>
-              ✏️ Edit
-            </button>
-            <button onClick={()=>setSelected(null)}
-              style={{ background:"#F1F5F9",border:"none",cursor:"pointer",
-                borderRadius:"8px",width:"32px",height:"32px",fontSize:"18px",color:"#64748B" }}>×</button>
+    <div style={{flex:1, height:"100%", position:"relative"}}>
+      <ReactFlowProvider>
+        <ReactFlow
+          nodes={rfNodes}
+          edges={rfEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{padding:0.25}}
+          minZoom={0.2}
+          maxZoom={3}
+          style={{background:"#F8F9FF"}}
+          proOptions={{hideAttribution:true}}
+        >
+          <Background color="#DDE1F0" gap={40} size={1.2} variant="dots"/>
+          <Controls style={{boxShadow:"0 2px 12px rgba(99,102,241,0.15)",borderRadius:"10px",border:"1px solid #E4E7F0"}}/>
+          <MiniMap
+            nodeColor={n=>
+              n.type==="ovalNode"&&n.data?.nodeType==="start"?"#10B981":
+              n.type==="ovalNode"?"#EF4444":
+              n.type==="decisionNode"?"#F59E0B":
+              n.data?.color||"#6366F1"
+            }
+            style={{borderRadius:"10px",border:"1px solid #E4E7F0",
+              boxShadow:"0 2px 12px rgba(99,102,241,0.1)"}}
+            maskColor="rgba(248,249,255,0.85)"
+          />
+          {/* Hint */}
+          <div style={{position:"absolute",bottom:14,left:"50%",transform:"translateX(-50%)",
+            background:"rgba(255,255,255,0.92)",backdropFilter:"blur(8px)",
+            border:"1px solid #E4E7F0",borderRadius:"20px",padding:"5px 16px",
+            fontSize:"11px",color:"#94A3B8",fontWeight:500,
+            boxShadow:"0 2px 8px rgba(99,102,241,0.08)",pointerEvents:"none",
+            fontFamily:"Plus Jakarta Sans,sans-serif",zIndex:10}}>
+            🖱️ Drag nodes · Scroll to zoom · Double-click to edit
           </div>
-          {selectedNode.description&&<p style={{ fontSize:"12px",color:"var(--text2)",fontStyle:"italic",marginBottom:"10px",lineHeight:1.6 }}>{selectedNode.description}</p>}
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px" }}>
-            {selectedNode.steps?.length>0&&(
-              <div>
-                <div style={{ fontSize:"10px",fontWeight:700,letterSpacing:"1.3px",color:"var(--text3)",textTransform:"uppercase",marginBottom:"7px" }}>Steps</div>
-                {selectedNode.steps.map((s,i)=>(
-                  <div key={i} style={{ display:"flex",gap:"7px",marginBottom:"5px",alignItems:"flex-start" }}>
-                    <span style={{ minWidth:"18px",height:"18px",borderRadius:"4px",
-                      background:`${getColor(selectedNode)}14`,border:`1px solid ${getColor(selectedNode)}28`,
-                      display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:"9px",fontWeight:700,color:getColor(selectedNode),flexShrink:0 }}>{i+1}</span>
-                    <span style={{ fontSize:"12px",color:"var(--text2)",lineHeight:1.4 }}>{s}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {selectedNode.output&&(
-              <div>
-                <div style={{ fontSize:"10px",fontWeight:700,letterSpacing:"1.3px",color:"var(--text3)",textTransform:"uppercase",marginBottom:"7px" }}>Output</div>
-                <div style={{ padding:"8px 12px",background:`${getColor(selectedNode)}09`,
-                  border:`1.5px solid ${getColor(selectedNode)}20`,borderRadius:"8px",
-                  fontSize:"12px",lineHeight:1.5 }}>✓ {selectedNode.output}</div>
-                {selectedNode.note&&<div style={{ marginTop:"7px",padding:"7px 10px",
-                  background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:"7px",
-                  fontSize:"11px",color:"#92400E" }}>⚠️ {selectedNode.note}</div>}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        </ReactFlow>
+      </ReactFlowProvider>
 
-      {/* Edit Modal */}
       {editing && (
         <EditModal
           node={editing}
