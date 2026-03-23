@@ -930,6 +930,877 @@ function UploadPanel({ onRun }) {
 }
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
+
+const LOGIN_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  .ls-root {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #080B18;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── CANVAS BACKGROUND ── */
+  .ls-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── MORPHING BLOBS ── */
+  .ls-blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: screen;
+  }
+  .ls-blob-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%);
+    top: -200px; left: -100px;
+    animation: blobMove1 12s ease-in-out infinite;
+  }
+  .ls-blob-2 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%);
+    bottom: -150px; right: -100px;
+    animation: blobMove2 15s ease-in-out infinite;
+  }
+  .ls-blob-3 {
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%);
+    top: 40%; left: 30%;
+    animation: blobMove3 10s ease-in-out infinite;
+  }
+
+  /* ── GRID ── */
+  .ls-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+    animation: gridFade 3s ease both;
+  }
+
+  /* ── CARD ── */
+  .ls-card {
+    width: 100%;
+    max-width: 440px;
+    position: relative;
+    z-index: 10;
+    margin: 24px;
+    animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .ls-card-inner {
+    background: rgba(15, 18, 35, 0.85);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 24px;
+    padding: 40px;
+    backdrop-filter: blur(40px);
+    box-shadow:
+      0 0 0 1px rgba(99,102,241,0.1),
+      0 24px 80px rgba(0,0,0,0.6),
+      0 0 120px rgba(99,102,241,0.08) inset;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Shimmer top edge */
+  .ls-card-inner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(99,102,241,0.8), transparent);
+    animation: shimmerLine 3s ease-in-out infinite;
+  }
+
+  /* Inner glow */
+  .ls-card-inner::after {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 200px; height: 120px;
+    background: radial-gradient(ellipse, rgba(99,102,241,0.12), transparent);
+    pointer-events: none;
+  }
+
+  /* ── LOGO ── */
+  .ls-logo-wrap {
+    text-align: center;
+    margin-bottom: 32px;
+    animation: logoReveal 0.7s 0.2s cubic-bezier(0.34, 1.6, 0.64, 1) both;
+  }
+
+  .ls-logo-hex {
+    width: 64px; height: 64px;
+    margin: 0 auto 16px;
+    position: relative;
+    animation: hexSpin 0.8s 0.3s cubic-bezier(0.34, 1.6, 0.64, 1) both;
+  }
+
+  .ls-logo-hex svg {
+    width: 100%; height: 100%;
+    filter: drop-shadow(0 0 20px rgba(99,102,241,0.6)) drop-shadow(0 0 40px rgba(139,92,246,0.3));
+    animation: hexPulse 3s ease-in-out infinite;
+  }
+
+  .ls-logo-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, #fff 30%, rgba(139,92,246,0.9));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .ls-logo-sub {
+    font-size: 13px;
+    color: rgba(148, 163, 184, 0.7);
+    letter-spacing: 0.3px;
+  }
+
+  /* ── TABS ── */
+  .ls-tabs {
+    display: flex;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 28px;
+    animation: fadeSlideUp 0.5s 0.35s ease both;
+  }
+
+  .ls-tab {
+    flex: 1; padding: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600;
+    border: none; background: transparent;
+    cursor: pointer; border-radius: 9px;
+    transition: all 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+    color: rgba(148,163,184,0.6);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ls-tab::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .ls-tab.active {
+    background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2));
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.25), 0 0 0 1px rgba(99,102,241,0.3);
+  }
+
+  .ls-tab:not(.active):hover {
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* ── INPUT GROUP ── */
+  .ls-field {
+    margin-bottom: 18px;
+    animation: fadeSlideUp 0.5s ease both;
+  }
+
+  .ls-field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(148,163,184,0.6);
+    margin-bottom: 8px;
+  }
+
+  .ls-input-wrap {
+    position: relative;
+  }
+
+  .ls-input-icon {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    opacity: 0.5;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+  }
+
+  .ls-input {
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 400;
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 13px 14px 13px 42px;
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+    box-sizing: border-box;
+  }
+
+  .ls-input::placeholder { color: rgba(148,163,184,0.35); }
+
+  .ls-input:focus {
+    border-color: rgba(99,102,241,0.6);
+    background: rgba(99,102,241,0.06);
+    box-shadow:
+      0 0 0 3px rgba(99,102,241,0.15),
+      0 0 20px rgba(99,102,241,0.1);
+    transform: translateY(-1px);
+  }
+
+  .ls-input:focus + .ls-input-icon,
+  .ls-input-wrap:focus-within .ls-input-icon {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  .ls-pw-toggle {
+    position: absolute;
+    right: 12px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    cursor: pointer; font-size: 14px;
+    color: rgba(148,163,184,0.4);
+    padding: 4px;
+    transition: all 0.2s;
+    border-radius: 6px;
+  }
+  .ls-pw-toggle:hover {
+    color: rgba(148,163,184,0.9);
+    background: rgba(255,255,255,0.06);
+  }
+
+  /* ── STRENGTH BAR ── */
+  .ls-strength {
+    margin-top: 8px;
+    animation: fadeIn 0.3s ease both;
+  }
+  .ls-strength-bars {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 5px;
+  }
+  .ls-strength-bar {
+    flex: 1; height: 3px; border-radius: 2px;
+    transition: all 0.4s cubic-bezier(0.34,1.3,0.64,1);
+  }
+  .ls-strength-label {
+    font-size: 11px; font-weight: 600;
+    transition: color 0.3s;
+  }
+
+  /* ── ERROR ── */
+  .ls-error {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #FCA5A5;
+    padding: 10px 14px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    animation: errorPop 0.4s cubic-bezier(0.34,1.6,0.64,1) both;
+  }
+
+  /* ── PRIMARY BUTTON ── */
+  .ls-btn {
+    width: 100%;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #6366F1 100%);
+    background-size: 200% 200%;
+    border: none; border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    position: relative; overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.34,1.3,0.64,1);
+    box-shadow: 0 4px 24px rgba(99,102,241,0.4), 0 1px 0 rgba(255,255,255,0.1) inset;
+    letter-spacing: 0.3px;
+    margin-bottom: 20px;
+    animation: btnReveal 0.5s ease both;
+  }
+
+  .ls-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Ripple effect */
+  .ls-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    width: 300px; height: 300px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    transition: transform 0.5s, opacity 0.5s;
+    opacity: 0;
+  }
+
+  .ls-btn:hover {
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 0 12px 40px rgba(99,102,241,0.55), 0 1px 0 rgba(255,255,255,0.15) inset;
+    background-position: right center;
+  }
+
+  .ls-btn:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  .ls-btn:active::after {
+    transform: translate(-50%,-50%) scale(1);
+    opacity: 0;
+    transition: 0s;
+  }
+
+  .ls-btn:disabled {
+    background: rgba(99,102,241,0.25);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+    color: rgba(255,255,255,0.4);
+  }
+
+  /* ── SPINNER ── */
+  .ls-spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: white;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* ── DIVIDER ── */
+  .ls-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+    animation: fadeSlideUp 0.5s 0.5s ease both;
+  }
+  .ls-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+  .ls-divider-text { font-size: 12px; color: rgba(148,163,184,0.4); font-weight: 500; white-space: nowrap; }
+
+  /* ── SWITCH LINK ── */
+  .ls-switch {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(148,163,184,0.5);
+    animation: fadeSlideUp 0.5s 0.55s ease both;
+  }
+
+  .ls-switch-btn {
+    background: none; border: none;
+    color: #818CF8; font-weight: 700;
+    cursor: pointer; font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0 2px;
+    position: relative;
+    transition: color 0.2s;
+  }
+
+  .ls-switch-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 1px;
+    background: #818CF8;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+  }
+
+  .ls-switch-btn:hover { color: #A5B4FC; }
+  .ls-switch-btn:hover::after { transform: scaleX(1); }
+
+  /* ── FOOTER ── */
+  .ls-footer {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 11px;
+    color: rgba(148,163,184,0.3);
+    letter-spacing: 0.3px;
+    animation: fadeIn 1s 0.8s ease both;
+  }
+
+  /* ── FLOATING NODES (decorative) ── */
+  .ls-float-node {
+    position: fixed;
+    border-radius: 10px;
+    border: 1px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+    pointer-events: none;
+    z-index: 1;
+    backdrop-filter: blur(8px);
+  }
+
+  /* ── SHAKE ── */
+  .ls-shake { animation: shakeX 0.4s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+
+  /* ══════════ KEYFRAMES ══════════ */
+  @keyframes blobMove1 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33%     { transform: translate(80px, 60px) scale(1.1); }
+    66%     { transform: translate(-40px, 80px) scale(0.9); }
+  }
+  @keyframes blobMove2 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33%     { transform: translate(-60px, -80px) scale(1.15); }
+    66%     { transform: translate(40px, -40px) scale(0.95); }
+  }
+  @keyframes blobMove3 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%     { transform: translate(-80px, 60px) scale(1.2); }
+  }
+  @keyframes gridFade {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+  @keyframes cardEntrance {
+    from { opacity: 0; transform: translateY(40px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes logoReveal {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hexSpin {
+    from { opacity: 0; transform: scale(0.3) rotate(-180deg); }
+    to   { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+  @keyframes hexPulse {
+    0%,100% { filter: drop-shadow(0 0 20px rgba(99,102,241,0.6)) drop-shadow(0 0 40px rgba(139,92,246,0.3)); }
+    50%     { filter: drop-shadow(0 0 30px rgba(99,102,241,0.9)) drop-shadow(0 0 60px rgba(139,92,246,0.5)); }
+  }
+  @keyframes shimmerLine {
+    0%   { left: -100%; }
+    100% { left: 200%; }
+  }
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+  @keyframes btnReveal {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes errorPop {
+    from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes shakeX {
+    0%,100% { transform: translateX(0); }
+    15%,45%,75% { transform: translateX(-8px); }
+    30%,60%,90% { transform: translateX(8px); }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+  }
+  @keyframes nodeFloat1 {
+    0%,100% { transform: translateY(0px) rotate(0deg); opacity: 0.4; }
+    50%     { transform: translateY(-20px) rotate(3deg); opacity: 0.7; }
+  }
+  @keyframes nodeFloat2 {
+    0%,100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+    50%     { transform: translateY(16px) rotate(-2deg); opacity: 0.6; }
+  }
+  @keyframes nodeFloat3 {
+    0%,100% { transform: translateY(0px) scale(1); opacity: 0.25; }
+    50%     { transform: translateY(-12px) scale(1.05); opacity: 0.5; }
+  }
+  @keyframes connectorPulse {
+    0%,100% { opacity: 0.15; }
+    50%     { opacity: 0.4; }
+  }
+  @keyframes particleDrift {
+    0%   { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10%  { opacity: 0.6; }
+    90%  { opacity: 0.3; }
+    100% { transform: translateY(-100px) translateX(var(--drift)); opacity: 0; }
+  }
+`;
+
+// ── PARTICLE CANVAS ──────────────────────────────────────────────────────────
+function ParticleCanvas() {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animId;
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Particles
+    const particles = Array.from({ length: 60 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 1.5 + 0.3,
+      alpha: Math.random() * 0.4 + 0.1,
+    }));
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Move
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+      });
+      // Connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            const alpha = (1 - dist / 120) * 0.12;
+            ctx.strokeStyle = `rgba(99,102,241,${alpha})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
+      }
+      // Dots
+      particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(139,92,246,${p.alpha})`;
+        ctx.fill();
+      });
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+  }, []);
+  return <canvas ref={canvasRef} className="ls-canvas"/>;
+}
+
+// ── FLOATING DECORATIVE NODES ─────────────────────────────────────────────────
+function FloatingNodes() {
+  const nodes = [
+    { label:"Start", color:"#10B981", bg:"rgba(16,185,129,0.08)", style:{ top:"12%", left:"6%", width:80, height:36, borderRadius:20, animation:"nodeFloat1 6s ease-in-out infinite" } },
+    { label:"Decision ◆", color:"#F59E0B", bg:"rgba(245,158,11,0.08)", style:{ top:"25%", right:"5%", width:110, height:36, borderRadius:8, animation:"nodeFloat2 8s ease-in-out infinite" } },
+    { label:"Process", color:"#6366F1", bg:"rgba(99,102,241,0.08)", style:{ bottom:"28%", left:"4%", width:90, height:36, borderRadius:10, animation:"nodeFloat3 7s ease-in-out infinite" } },
+    { label:"Export ✓", color:"#8B5CF6", bg:"rgba(139,92,246,0.08)", style:{ bottom:"15%", right:"6%", width:90, height:36, borderRadius:10, animation:"nodeFloat1 9s 1s ease-in-out infinite" } },
+    { label:"End", color:"#EF4444", bg:"rgba(239,68,68,0.08)", style:{ top:"60%", right:"8%", width:70, height:36, borderRadius:20, animation:"nodeFloat2 7s 2s ease-in-out infinite" } },
+  ];
+  return (
+    <>
+      {/* Connector lines */}
+      <svg style={{ position:"fixed", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:1 }}>
+        <line x1="9%" y1="14%" x2="9%" y2="72%" stroke="rgba(99,102,241,0.08)" strokeWidth="1" strokeDasharray="4 6" style={{ animation:"connectorPulse 4s ease-in-out infinite" }}/>
+        <line x1="92%" y1="27%" x2="92%" y2="62%" stroke="rgba(245,158,11,0.07)" strokeWidth="1" strokeDasharray="4 6" style={{ animation:"connectorPulse 5s 1s ease-in-out infinite" }}/>
+      </svg>
+      {nodes.map((n, i) => (
+        <div key={i} className="ls-float-node"
+          style={{ ...n.style, background:n.bg, borderColor:`${n.color}30`, color:n.color }}>
+          {n.label}
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ── PASSWORD STRENGTH ─────────────────────────────────────────────────────────
+function PwStrength({ password }) {
+  const score = [password.length >= 6, /[A-Z]/.test(password), /[0-9]/.test(password)].filter(Boolean).length;
+  const colors = ["#EF4444","#F59E0B","#10B981"];
+  const labels = ["Weak","Fair","Strong"];
+  if (!password) return null;
+  return (
+    <div className="ls-strength">
+      <div className="ls-strength-bars">
+        {[0,1,2].map(i => (
+          <div key={i} className="ls-strength-bar"
+            style={{ background: i < score ? colors[score-1] : "rgba(255,255,255,0.08)", boxShadow: i < score ? `0 0 6px ${colors[score-1]}66` : "none" }}/>
+        ))}
+      </div>
+      <span className="ls-strength-label" style={{ color: score > 0 ? colors[score-1] : "rgba(148,163,184,0.4)" }}>
+        {score > 0 ? labels[score-1] : ""} {score === 3 ? "✓" : ""}
+      </span>
+    </div>
+  );
+}
+
+// ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const existingUser = LS.get(KEYS.USER);
+  const [tab, setTab] = useState(existingUser ? "login" : "register");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
+  const [focused, setFocused] = useState(null);
+
+  const triggerShake = () => { setShake(true); setTimeout(() => setShake(false), 500); };
+
+  const switchTab = (t) => {
+    setTab(t); setError(""); setUsername(""); setPassword("");
+  };
+
+  const handleRegister = () => {
+    if (!username.trim() || username.trim().length < 3) { setError("Username must be at least 3 characters."); triggerShake(); return; }
+    if (!password || password.length < 6) { setError("Password must be at least 6 characters."); triggerShake(); return; }
+    if (LS.get(KEYS.USER)) { setError("Account already exists. Please sign in."); switchTab("login"); return; }
+    const user = { username: username.trim(), passwordHash: hashPassword(password) };
+    LS.set(KEYS.USER, user);
+    LS.set(KEYS.SESSION, { username: user.username, loggedInAt: new Date().toISOString() });
+    onLogin(user.username, false);
+  };
+
+  const handleLogin = async () => {
+    if (!username.trim() || !password) { setError("Please fill in all fields."); triggerShake(); return; }
+    setLoading(true); setError("");
+    await new Promise(r => setTimeout(r, 700));
+    const user = LS.get(KEYS.USER);
+    if (!user) { setError("No account found. Create one first."); switchTab("register"); setLoading(false); return; }
+    if (user.username.toLowerCase() !== username.trim().toLowerCase()) { setError("Incorrect username."); triggerShake(); setLoading(false); return; }
+    if (user.passwordHash !== hashPassword(password)) { setError("Incorrect password."); triggerShake(); setLoading(false); return; }
+    LS.set(KEYS.SESSION, { username: user.username, loggedInAt: new Date().toISOString() });
+    setLoading(false);
+    onLogin(user.username, !!LS.get(KEYS.APIKEY));
+  };
+
+  const fieldDelay = (i) => ({ animationDelay: `${0.3 + i * 0.08}s` });
+
+  return (
+    <div className="ls-root">
+      <style>{LOGIN_CSS}</style>
+
+      {/* Animated background layers */}
+      <ParticleCanvas/>
+      <div className="ls-grid"/>
+      <div className="ls-blob ls-blob-1"/>
+      <div className="ls-blob ls-blob-2"/>
+      <div className="ls-blob ls-blob-3"/>
+      <FloatingNodes/>
+
+      {/* Card */}
+      <div className="ls-card">
+        <div className="ls-card-inner">
+
+          {/* Logo */}
+          <div className="ls-logo-wrap">
+            <div className="ls-logo-hex">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#6366F1"/>
+                    <stop offset="50%" stopColor="#8B5CF6"/>
+                    <stop offset="100%" stopColor="#06B6D4"/>
+                  </linearGradient>
+                  <linearGradient id="hexGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.3)"/>
+                    <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
+                  </linearGradient>
+                </defs>
+                <polygon points="32,4 56,17 56,47 32,60 8,47 8,17" fill="url(#hexGrad)" stroke="rgba(139,92,246,0.4)" strokeWidth="1"/>
+                <polygon points="32,4 56,17 56,47 32,60 8,47 8,17" fill="url(#hexGrad2)"/>
+                <text x="32" y="38" textAnchor="middle" fontSize="22" fontWeight="bold" fill="white" fontFamily="sans-serif">⬡</text>
+              </svg>
+            </div>
+            <div className="ls-logo-title">FlowScribe</div>
+            <div className="ls-logo-sub">AI-powered flowchart generator</div>
+          </div>
+
+          {/* Tabs */}
+          <div className="ls-tabs">
+            <button className={`ls-tab${tab==="login"?" active":""}`} onClick={()=>switchTab("login")}>Sign In</button>
+            <button className={`ls-tab${tab==="register"?" active":""}`} onClick={()=>switchTab("register")}>Create Account</button>
+          </div>
+
+          {/* Form */}
+          <div className={shake ? "ls-shake" : ""}>
+
+            {/* Username */}
+            <div className="ls-field" style={fieldDelay(0)}>
+              <label className="ls-field-label">Username</label>
+              <div className="ls-input-wrap">
+                <input className="ls-input" type="text" value={username}
+                  onChange={e=>{setUsername(e.target.value);setError("");}}
+                  placeholder="Enter your username"
+                  onFocus={()=>setFocused("user")} onBlur={()=>setFocused(null)}
+                  onKeyDown={e=>e.key==="Enter"&&(tab==="login"?handleLogin():handleRegister())}
+                  autoFocus style={{ paddingLeft:"42px" }}/>
+                <span className="ls-input-icon" style={{ left:"14px", top:"50%", transform:"translateY(-50%)", fontSize:"15px" }}>
+                  {focused==="user" ? "✨" : "👤"}
+                </span>
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="ls-field" style={fieldDelay(1)}>
+              <label className="ls-field-label">Password</label>
+              <div className="ls-input-wrap">
+                <input className="ls-input" type={showPw?"text":"password"} value={password}
+                  onChange={e=>{setPassword(e.target.value);setError("");}}
+                  placeholder={tab==="register"?"Min 6 characters":"Your password"}
+                  onFocus={()=>setFocused("pw")} onBlur={()=>setFocused(null)}
+                  onKeyDown={e=>e.key==="Enter"&&(tab==="login"?handleLogin():handleRegister())}
+                  style={{ paddingLeft:"42px", paddingRight:"44px" }}/>
+                <span className="ls-input-icon" style={{ left:"14px", top:"50%", transform:"translateY(-50%)", fontSize:"15px" }}>
+                  {focused==="pw" ? "✨" : "🔒"}
+                </span>
+                <button className="ls-pw-toggle" onClick={()=>setShowPw(v=>!v)}>
+                  {showPw ? "🙈" : "👁️"}
+                </button>
+              </div>
+              {tab==="register" && <PwStrength password={password}/>}
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="ls-error">
+                <span style={{ fontSize:"16px" }}>⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button className="ls-btn" onClick={tab==="login"?handleLogin:handleRegister} disabled={loading} style={fieldDelay(2)}>
+              {loading ? (
+                <span style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"10px" }}>
+                  <span className="ls-spinner"/>
+                  Authenticating…
+                </span>
+              ) : tab==="login" ? "Sign In →" : "Create Account →"}
+            </button>
+          </div>
+
+          {/* Switch */}
+          <div className="ls-divider">
+            <div className="ls-divider-line"/>
+            <span className="ls-divider-text">{tab==="login"?"Don't have an account?":"Already have an account?"}</span>
+            <div className="ls-divider-line"/>
+          </div>
+
+          <div className="ls-switch">
+            <button className="ls-switch-btn" onClick={()=>switchTab(tab==="login"?"register":"login")}>
+              {tab==="login" ? "Create a free account" : "Sign in instead"}
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="ls-footer">
+            🔒 Credentials stored locally · Never shared with anyone
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ── API KEY SETUP ─────────────────────────────────────────────────────────────
+function ApiKeySetup({ username, onDone }) {
+  const [key,setKey]=useState(""); const [show,setShow]=useState(false);
+  const [error,setError]=useState(""); const [testing,setTesting]=useState(false);
+  const handleSave = async () => {
+    if (!key.startsWith("sk-ant-")){setError("Key must start with sk-ant-");return;}
+    setTesting(true); setError("");
+    try {
+      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:10,messages:[{role:"user",content:"hi"}]})});
+      if(!r.ok){const e=await r.json();throw new Error(e?.error?.message||"Invalid key");}
+      LS.set(KEYS.APIKEY,key); onDone(key);
+    } catch(e){setError(e.message);} finally{setTesting(false);}
+  };
+  return (
+    <div className="ls-root"><style>{LOGIN_CSS}</style>
+      <div className="ls-blob ls-blob-1"/><div className="ls-blob ls-blob-2"/>
+      <div className="ls-card">
+        <div className="ls-card-inner">
+          <div className="ls-logo-wrap">
+            <div style={{fontSize:"44px",marginBottom:"12px",animation:"hexIn 0.6s ease both"}}>🔑</div>
+            <div className="ls-logo-title">Connect API Key</div>
+            <div className="ls-logo-sub">Welcome, {username}! One-time setup — never asked again.</div>
+          </div>
+          <div style={{marginBottom:"14px"}}>
+            <label className="ls-field-label">Anthropic API Key</label>
+            <div className="ls-input-wrap">
+              <span className="ls-input-icon-left">🔐</span>
+              <input className="ls-input" type={show?"text":"password"} value={key}
+                onChange={e=>{setKey(e.target.value);setError("");}}
+                placeholder="sk-ant-api03-…"
+                onKeyDown={e=>e.key==="Enter"&&handleSave()}
+                style={{paddingRight:"80px"}} autoFocus/>
+              <button onClick={()=>setShow(v=>!v)} className="ls-pw-eye">{show?"Hide":"Show"}</button>
+            </div>
+          </div>
+          {error&&<div className="ls-error"><span>⚠️</span><span>{error}</span></div>}
+          <button className="ls-btn" onClick={handleSave} disabled={!key||testing}>
+            {testing
+              ?<span style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"10px"}}><span className="ls-spin"/>Verifying…</span>
+              :"Save & Continue →"}
+          </button>
+          <div style={{padding:"14px",background:"rgba(99,102,241,0.06)",borderRadius:"12px",border:"1px solid rgba(99,102,241,0.15)"}}>
+            <div style={{fontSize:"10px",fontWeight:700,letterSpacing:"1.2px",color:"rgba(148,163,184,0.6)",marginBottom:"10px",textTransform:"uppercase"}}>How to get a key</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"7px"}}>
+              {[["1","console.anthropic.com","🌐"],["2","Sign up / Log in","👤"],["3","API Keys → Create","🔐"],["4","Paste above","✅"]].map(([n,t,ic])=>(
+                <div key={n} style={{padding:"8px 10px",background:"rgba(255,255,255,0.05)",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.08)"}}>
+                  <div style={{fontSize:"9px",fontWeight:700,color:"#818CF8",marginBottom:"2px"}}>STEP {n}</div>
+                  <div style={{fontSize:"11px",color:"rgba(148,163,184,0.7)"}}>{ic} {t}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:"10px",padding:"7px 12px",background:"rgba(16,185,129,0.1)",border:"1px solid rgba(16,185,129,0.25)",borderRadius:"8px",fontSize:"11px",color:"#6EE7B7",fontWeight:500}}>
+              💚 ~$0.001 per analysis · Free tier available
+            </div>
+          </div>
+          <div className="ls-foot">🔒 Key stored locally in your browser only</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 export default function App() {
   const getInitialScreen = () => {
     const session=LS.get(KEYS.SESSION); const user=LS.get(KEYS.USER); const apiKey=LS.get(KEYS.APIKEY);
