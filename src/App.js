@@ -4,7 +4,7 @@ import ReactFlow, {
   useNodesState, useEdgesState,
   MarkerType, Handle, Position, ReactFlowProvider
 } from 'reactflow';
-import 'reactflow/dist/base.css';
+
 
 const COLORS = ["#6366F1","#8B5CF6","#06B6D4","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6"];
 
@@ -21,13 +21,16 @@ const extractJSON = (text) => {
   try { const m=text.match(/```json\s*([\s\S]*?)```/)||text.match(/(\{[\s\S]*\})/); if(m) return JSON.parse(m[1]); return JSON.parse(text); } catch { return null; }
 };
 
-async function analyzeTranscript(text, apiKey) {
+async function analyzeTranscript(text, apiKey, customInstructions="") {
+  const instructionsBlock = customInstructions.trim()
+    ? `\nSPECIAL INSTRUCTIONS FROM USER: ${customInstructions.trim()}\n`
+    : "";
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method:"POST",
     headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
     body: JSON.stringify({
       model:"claude-haiku-4-5-20251001", max_tokens:2000,
-      messages:[{role:"user",content:`You are a business process analyst. Extract a flowchart from this transcript.\nReturn ONLY valid JSON:\n{"title":"short title","summary":"one sentence","actors":[{"id":"a1","name":"Name","emoji":"👤","color":"#6366F1"}],"nodes":[{"id":"n1","type":"start","label":"Start"},{"id":"n2","type":"process","label":"Step title","actorId":"a1","description":"what happens","steps":["step1"],"output":"result","note":""},{"id":"n3","type":"decision","label":"Decision?","question":"yes or no question","yes":"path if yes","no":"path if no"},{"id":"n4","type":"end","label":"End"}],"edges":[{"from":"n1","to":"n2","label":""},{"from":"n3","to":"n2","label":"YES"},{"from":"n3","to":"n4","label":"NO"}],"keyInsights":["insight1"]}\nRules:\n- Always start with a "start" node and end with one or more "end" nodes\n- Use "decision" nodes for yes/no branches with YES and NO edges\n- "process" nodes for regular steps\n- edges connect nodes with "from" and "to" matching node ids\n- label edges coming out of decisions as "YES" or "NO"\n- 5-12 nodes total\nTRANSCRIPT: ${text.substring(0,8000)}`}]
+      messages:[{role:"user",content:`You are a business process analyst. Extract a flowchart from this transcript.${instructionsBlock}\nReturn ONLY valid JSON:\n{"title":"short title","summary":"one sentence","actors":[{"id":"a1","name":"Name","emoji":"👤","color":"#6366F1"}],"nodes":[{"id":"n1","type":"start","label":"Start"},{"id":"n2","type":"process","label":"Step title","actorId":"a1","description":"what happens","steps":["step1"],"output":"result","note":""},{"id":"n3","type":"decision","label":"Decision?","question":"yes or no question","yes":"path if yes","no":"path if no"},{"id":"n4","type":"end","label":"End"}],"edges":[{"from":"n1","to":"n2","label":""},{"from":"n3","to":"n2","label":"YES"},{"from":"n3","to":"n4","label":"NO"}],"keyInsights":["insight1"]}\nRules:\n- Always start with a "start" node and end with one or more "end" nodes\n- Use "decision" nodes for yes/no branches with YES and NO edges\n- "process" nodes for regular steps\n- edges connect nodes with "from" and "to" matching node ids\n- label edges coming out of decisions as "YES" or "NO"\n- 5-12 nodes total\nTRANSCRIPT: ${text.substring(0,8000)}`}]
     })
   });
   if (!r.ok) { const e=await r.json(); throw new Error(e?.error?.message||"API Error"); }
@@ -746,83 +749,171 @@ function UploadPanel({ onRun }) {
   const [dragOver, setDragOver] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [showPaste, setShowPaste] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState(null);
   const fileRef = useRef(null);
+
+  const PRESETS = [
+    { id:"meeting",  emoji:"📋", label:"Meeting transcript",  desc:"Focus on decisions & action items", value:"This is a meeting transcript. Focus on decisions made, action items assigned, and who is responsible for each task." },
+    { id:"sop",      emoji:"📄", label:"SOP / Process doc",   desc:"Map every step & decision point",  value:"This is a standard operating procedure. Map every step in sequence, highlight decision points, and show who performs each action." },
+    { id:"decision", emoji:"🔀", label:"Decision-heavy",       desc:"More diamonds, more branching",     value:"Focus on decision points and branching paths. Create more decision diamond nodes than process nodes." },
+    { id:"people",   emoji:"👥", label:"People & roles",       desc:"Show who does what at every step",  value:"Highlight who does what. Make sure every process step is assigned to a specific person or role." },
+    { id:"simple",   emoji:"⚡", label:"Keep it simple",       desc:"5–7 nodes, high-level only",        value:"Create a simple, high-level flowchart with 5-7 nodes max. Avoid too much detail." },
+    { id:"detailed", emoji:"🔍", label:"Very detailed",         desc:"Up to 12 nodes, include sub-steps", value:"Be as detailed as possible, up to 12 nodes. Include sub-steps, outputs, and notes for each process node." },
+    { id:"support",  emoji:"🎧", label:"Customer support call", desc:"Issue resolution & escalations",    value:"This is a customer support call. Focus on the issue resolution steps, who was responsible, and highlight any escalation points." },
+    { id:"sales",    emoji:"💼", label:"Sales process",         desc:"Pipeline stages & follow-ups",      value:"This is a sales process. Map each stage of the pipeline, key decision points, and who owns each step." },
+  ];
+
+  const instructions = selectedPreset ? selectedPreset.value : "";
+
   const readFile = (file) => new Promise((res,rej)=>{
     if(file.type==="application/pdf"){res(`[PDF: ${file.name}] Please paste text.`);return;}
     const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file);
   });
-  const handleDrop = async (e) => { e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f){const t=await readFile(f);onRun(t,f.name);} };
-  const handleFile = async (e) => { const f=e.target.files[0];if(f){const t=await readFile(f);onRun(t,f.name);} };
-  return (
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 24px",overflowY:"auto"}}>
-      <div style={{width:"100%",maxWidth:"520px"}}>
-        <div style={{marginBottom:"32px",textAlign:"center"}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"#EEF2FF",border:"1px solid var(--border2)",borderRadius:"20px",padding:"5px 14px",fontSize:"12px",fontWeight:700,color:"#6366F1",marginBottom:"16px"}}>
-            <span style={{width:"7px",height:"7px",borderRadius:"50%",background:"#6366F1",display:"inline-block",animation:"dotPulse 1.5s ease-in-out infinite"}}/>
-            AI-Powered Flowchart Generator
-          </div>
-          <h1 style={{fontSize:"clamp(22px,3.5vw,34px)",fontWeight:800,lineHeight:1.1,letterSpacing:"-1px",marginBottom:"10px",animation:"titleReveal 0.6s 0.1s ease both",opacity:0,animationFillMode:"forwards"}}>
-            Upload a document.<br/>
-            <span style={{background:"linear-gradient(135deg,#4F46E5,#7C3AED)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Get a real flowchart.</span>
-          </h1>
-          <p style={{fontSize:"14px",color:"var(--text2)",lineHeight:1.7,animation:"fadeUp 0.5s 0.2s ease both",opacity:0,animationFillMode:"forwards"}}>
-            With branching paths, decision diamonds, and YES/NO flows — just like a real process diagram.
-          </p>
-        </div>
+  const handleDrop = async (e) => { e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f){const t=await readFile(f);onRun(t,f.name,instructions);} };
+  const handleFile = async (e) => { const f=e.target.files[0];if(f){const t=await readFile(f);onRun(t,f.name,instructions);} };
 
-        {/* Mini preview of what it produces */}
-        <div className="card" style={{padding:"14px 18px",marginBottom:"20px",display:"flex",alignItems:"center",gap:"12px",animation:"fadeUp 0.5s 0.3s ease both",opacity:0,animationFillMode:"forwards"}}>
-          <div style={{display:"flex",alignItems:"center",gap:"6px",fontSize:"12px",flexWrap:"wrap"}}>
+  return (
+    <div style={{flex:1,display:"flex",overflowY:"auto"}}>
+
+      {/* ── LEFT: main upload area ── */}
+      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 32px",borderRight:"1px solid var(--border)"}}>
+        <div style={{width:"100%",maxWidth:"480px"}}>
+
+          <div style={{marginBottom:"28px",textAlign:"center"}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"#EEF2FF",border:"1px solid var(--border2)",borderRadius:"20px",padding:"5px 14px",fontSize:"12px",fontWeight:700,color:"#6366F1",marginBottom:"14px"}}>
+              <span style={{width:"7px",height:"7px",borderRadius:"50%",background:"#6366F1",display:"inline-block",animation:"dotPulse 1.5s ease-in-out infinite"}}/>
+              AI-Powered Flowchart Generator
+            </div>
+            <h1 style={{fontSize:"clamp(20px,3vw,30px)",fontWeight:800,lineHeight:1.15,letterSpacing:"-0.5px",marginBottom:"8px",animation:"titleReveal 0.6s 0.1s ease both",opacity:0,animationFillMode:"forwards"}}>
+              Upload a document.<br/>
+              <span style={{background:"linear-gradient(135deg,#4F46E5,#7C3AED)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Get a real flowchart.</span>
+            </h1>
+            <p style={{fontSize:"13px",color:"var(--text2)",lineHeight:1.65,animation:"fadeUp 0.5s 0.2s ease both",opacity:0,animationFillMode:"forwards"}}>
+              Branching paths, decision diamonds, YES/NO flows — just like a real process diagram.
+            </p>
+          </div>
+
+          {/* node preview strip */}
+          <div className="card" style={{padding:"12px 16px",marginBottom:"18px",display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap",animation:"fadeUp 0.5s 0.3s ease both",opacity:0,animationFillMode:"forwards"}}>
             <div style={{padding:"4px 10px",background:"#4F46E5",borderRadius:"10px",color:"white",fontWeight:700,fontSize:"11px"}}>● Start</div>
-            <span style={{color:"#6366F1",fontWeight:700}}>→</span>
+            <span style={{color:"#6366F1",fontWeight:700,fontSize:"13px"}}>→</span>
             <div style={{padding:"4px 10px",background:"white",border:"2px solid #6366F1",borderRadius:"6px",fontWeight:600,fontSize:"11px"}}>Process</div>
-            <span style={{color:"#6366F1",fontWeight:700}}>→</span>
+            <span style={{color:"#6366F1",fontWeight:700,fontSize:"13px"}}>→</span>
             <div style={{padding:"4px 10px",background:"#FFFBEB",border:"2px solid #FDE68A",borderRadius:"4px",fontWeight:600,fontSize:"11px",color:"#92400E"}}>◆ Decision</div>
-            <span style={{color:"#10B981",fontWeight:700}}>→YES</span>
+            <span style={{color:"#10B981",fontWeight:700,fontSize:"11px"}}>→YES</span>
             <div style={{padding:"4px 10px",background:"#10B981",borderRadius:"10px",color:"white",fontWeight:700,fontSize:"11px"}}>● End</div>
           </div>
-        </div>
 
-        <div className={`drop-zone${dragOver?" over":""}`} style={{marginBottom:"12px"}}
-          onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}
-          onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
-          <div style={{fontSize:"36px",marginBottom:"10px",display:"inline-block",animation:"float 3s ease-in-out infinite"}}>{dragOver?"📂":"📁"}</div>
-          <div style={{fontSize:"15px",fontWeight:700,marginBottom:"4px"}}>{dragOver?"Drop to analyze!":"Drop your document here"}</div>
-          <div style={{fontSize:"13px",color:"var(--text3)",marginBottom:"14px"}}>or click to browse</div>
-          <div style={{display:"flex",gap:"6px",justifyContent:"center",flexWrap:"wrap"}}>
-            {[".TXT",".MD",".CSV",".DOCX",".PDF"].map(e=><span key={e} style={{fontSize:"11px",fontWeight:600,color:"#6366F1",padding:"3px 10px",background:"#EEF2FF",borderRadius:"5px",border:"1px solid #C7D2FE"}}>{e}</span>)}
-          </div>
-        </div>
-        <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
-
-        <div style={{display:"flex",alignItems:"center",gap:"14px",margin:"14px 0"}}>
-          <div style={{flex:1,height:"1px",background:"linear-gradient(90deg,transparent,var(--border))"}}/>
-          <span style={{fontSize:"12px",fontWeight:600,color:"var(--text3)"}}>or paste text</span>
-          <div style={{flex:1,height:"1px",background:"linear-gradient(90deg,var(--border),transparent)"}}/>
-        </div>
-
-        <div className="card" style={{overflow:"hidden"}}>
-          <div onClick={()=>setShowPaste(v=>!v)} style={{padding:"13px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:showPaste?"1.5px solid var(--border)":"none"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-              <span style={{fontSize:"18px"}}>✏️</span>
-              <div><div style={{fontSize:"14px",fontWeight:600}}>Paste transcript or text</div><div style={{fontSize:"12px",color:"var(--text3)"}}>Meeting notes, SOPs, process docs...</div></div>
+          {/* drop zone */}
+          <div className={`drop-zone${dragOver?" over":""}`} style={{marginBottom:"12px"}}
+            onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)}
+            onDrop={handleDrop} onClick={()=>fileRef.current?.click()}>
+            <div style={{fontSize:"34px",marginBottom:"8px",display:"inline-block",animation:"float 3s ease-in-out infinite"}}>{dragOver?"📂":"📁"}</div>
+            <div style={{fontSize:"14px",fontWeight:700,marginBottom:"4px"}}>{dragOver?"Drop to analyze!":"Drop your document here"}</div>
+            <div style={{fontSize:"12px",color:"var(--text3)",marginBottom:"12px"}}>or click to browse</div>
+            <div style={{display:"flex",gap:"6px",justifyContent:"center",flexWrap:"wrap"}}>
+              {[".TXT",".MD",".CSV",".DOCX",".PDF"].map(e=><span key={e} style={{fontSize:"11px",fontWeight:600,color:"#6366F1",padding:"3px 10px",background:"#EEF2FF",borderRadius:"5px",border:"1px solid #C7D2FE"}}>{e}</span>)}
             </div>
-            <div style={{color:"var(--text3)",fontSize:"20px",fontWeight:700,transition:"transform 0.25s",transform:showPaste?"rotate(90deg)":"rotate(0)"}}>›</div>
           </div>
-          {showPaste&&(
-            <div style={{padding:"14px 18px 18px"}}>
-              <textarea className="input" value={pasteText} onChange={e=>setPasteText(e.target.value)} autoFocus placeholder="Paste your document here..." style={{minHeight:"130px",resize:"vertical",lineHeight:1.65}}/>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}}>
-                <span style={{fontSize:"12px",color:pasteText.length<50?"var(--text3)":"#059669",fontWeight:500}}>{pasteText.length<50?`${pasteText.length}/50 min`:`✓ ${pasteText.length} chars`}</span>
-                <div style={{display:"flex",gap:"8px"}}>
-                  <button className="btn btn-secondary" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"7px 14px",fontSize:"13px"}}>Clear</button>
-                  <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&onRun(pasteText,"Pasted text")} disabled={pasteText.trim().length<50} style={{padding:"7px 18px",fontSize:"13px",opacity:pasteText.trim().length>=50?1:0.5}}>Analyze →</button>
+          <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
+
+          {/* divider */}
+          <div style={{display:"flex",alignItems:"center",gap:"14px",margin:"14px 0"}}>
+            <div style={{flex:1,height:"1px",background:"linear-gradient(90deg,transparent,var(--border))"}}/>
+            <span style={{fontSize:"12px",fontWeight:600,color:"var(--text3)"}}>or paste text</span>
+            <div style={{flex:1,height:"1px",background:"linear-gradient(90deg,var(--border),transparent)"}}/>
+          </div>
+
+          {/* paste card */}
+          <div className="card" style={{overflow:"hidden"}}>
+            <div onClick={()=>setShowPaste(v=>!v)} style={{padding:"13px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",borderBottom:showPaste?"1.5px solid var(--border)":"none"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                <span style={{fontSize:"18px"}}>✏️</span>
+                <div><div style={{fontSize:"14px",fontWeight:600}}>Paste transcript or text</div><div style={{fontSize:"12px",color:"var(--text3)"}}>Meeting notes, SOPs, process docs...</div></div>
+              </div>
+              <div style={{color:"var(--text3)",fontSize:"20px",fontWeight:700,transition:"transform 0.25s",transform:showPaste?"rotate(90deg)":"rotate(0)"}}>›</div>
+            </div>
+            {showPaste&&(
+              <div style={{padding:"14px 18px 18px"}}>
+                <textarea className="input" value={pasteText} onChange={e=>setPasteText(e.target.value)} autoFocus placeholder="Paste your document here..." style={{minHeight:"130px",resize:"vertical",lineHeight:1.65}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"10px"}}>
+                  <span style={{fontSize:"12px",color:pasteText.length<50?"var(--text3)":"#059669",fontWeight:500}}>{pasteText.length<50?`${pasteText.length}/50 min`:`✓ ${pasteText.length} chars`}</span>
+                  <div style={{display:"flex",gap:"8px"}}>
+                    <button className="btn btn-secondary" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"7px 14px",fontSize:"13px"}}>Clear</button>
+                    <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&onRun(pasteText,"Pasted text",instructions)} disabled={pasteText.trim().length<50} style={{padding:"7px 18px",fontSize:"13px",opacity:pasteText.trim().length>=50?1:0.5}}>Analyze →</button>
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── RIGHT: instructions sidebar ── */}
+      <div style={{width:"260px",flexShrink:0,background:"#F8F9FF",borderLeft:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto"}}>
+        {/* header */}
+        <div style={{padding:"20px 18px 14px",borderBottom:"1px solid var(--border)",background:"white"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
+            <span style={{fontSize:"16px"}}>🎯</span>
+            <span style={{fontSize:"13px",fontWeight:800,color:"#1E1B4B",letterSpacing:"-0.2px"}}>AI Focus Mode</span>
+          </div>
+          <p style={{fontSize:"11px",color:"var(--text3)",lineHeight:1.5,margin:0}}>Pick a preset to guide how the AI reads your document.</p>
+        </div>
+
+        {/* preset list */}
+        <div style={{flex:1,padding:"12px 10px",display:"flex",flexDirection:"column",gap:"6px"}}>
+          {/* none option */}
+          <button
+            onClick={()=>setSelectedPreset(null)}
+            style={{width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:"10px",border:`1.5px solid ${!selectedPreset?"#6366F1":"transparent"}`,background:!selectedPreset?"#EEF2FF":"white",cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"center",gap:"10px",boxShadow:!selectedPreset?"0 0 0 3px #EEF2FF":"none"}}
+          >
+            <span style={{fontSize:"16px"}}>✨</span>
+            <div>
+              <div style={{fontSize:"12px",fontWeight:700,color:!selectedPreset?"#4F46E5":"var(--text1)"}}>Auto (no focus)</div>
+              <div style={{fontSize:"10px",color:"var(--text3)"}}>Let the AI decide</div>
             </div>
+            {!selectedPreset&&<span style={{marginLeft:"auto",fontSize:"14px",color:"#6366F1"}}>✓</span>}
+          </button>
+
+          {/* separator */}
+          <div style={{fontSize:"10px",fontWeight:700,color:"var(--text3)",letterSpacing:"0.8px",padding:"6px 4px 2px"}}>CHOOSE A FOCUS</div>
+
+          {PRESETS.map(p=>{
+            const active = selectedPreset?.id===p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={()=>setSelectedPreset(active?null:p)}
+                style={{width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:"10px",border:`1.5px solid ${active?"#6366F1":"transparent"}`,background:active?"#EEF2FF":"white",cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"flex-start",gap:"10px",boxShadow:active?"0 0 0 3px #EEF2FF":"none"}}
+              >
+                <span style={{fontSize:"16px",flexShrink:0,marginTop:"1px"}}>{p.emoji}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:"12px",fontWeight:700,color:active?"#4F46E5":"var(--text1)"}}>{p.label}</div>
+                  <div style={{fontSize:"10px",color:"var(--text3)",lineHeight:1.4,marginTop:"1px"}}>{p.desc}</div>
+                </div>
+                {active&&<span style={{flexShrink:0,fontSize:"14px",color:"#6366F1",marginTop:"1px"}}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* active badge at bottom */}
+        <div style={{padding:"12px 14px",borderTop:"1px solid var(--border)",background:"white"}}>
+          {selectedPreset ? (
+            <div style={{background:"#EEF2FF",borderRadius:"8px",padding:"8px 12px",display:"flex",alignItems:"center",gap:"8px"}}>
+              <span style={{fontSize:"14px"}}>{selectedPreset.emoji}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:"11px",fontWeight:700,color:"#4F46E5"}}>Active: {selectedPreset.label}</div>
+                <div style={{fontSize:"10px",color:"#6366F1",marginTop:"1px"}}>AI will use this focus</div>
+              </div>
+            </div>
+          ) : (
+            <div style={{textAlign:"center",fontSize:"11px",color:"var(--text3)"}}>No focus selected — auto mode</div>
           )}
         </div>
       </div>
+
     </div>
   );
 }
@@ -1743,11 +1834,11 @@ export default function App() {
   const handleLogin = (uname, hasKey) => { setUsername(uname); if(hasKey){setApiKey(LS.get(KEYS.APIKEY));setScreen("app");}else setScreen("apisetup"); };
   const handleApiDone = (key) => { setApiKey(key); setScreen("app"); };
 
-  const run = useCallback(async (text, name) => {
+  const run = useCallback(async (text, name, customInstructions="") => {
     setStage("processing"); setProgress("Reading document…"); setProgressPct(15);
     try {
       setProgress("AI analyzing & building flowchart…"); setProgressPct(45);
-      const result = await analyzeTranscript(text, apiKey);
+      const result = await analyzeTranscript(text, apiKey, customInstructions);
       setProgress("Laying out flowchart…"); setProgressPct(88);
       await new Promise(r=>setTimeout(r,300));
       setProgressPct(100); await new Promise(r=>setTimeout(r,200));
