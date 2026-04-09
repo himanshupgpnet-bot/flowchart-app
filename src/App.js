@@ -23,16 +23,65 @@ const extractJSON = (text) => {
   try { const m=text.match(/```json\s*([\s\S]*?)```/)||text.match(/(\{[\s\S]*\})/); if(m) return JSON.parse(m[1]); return JSON.parse(text); } catch { return null; }
 };
 
-async function analyzeTranscript(text, apiKey, customInstructions="") {
+async function analyzeTranscript(text, apiKey, customInstructions="", detailLevel="detailed") {
   const instructionsBlock = customInstructions.trim()
     ? `\nSPECIAL INSTRUCTIONS FROM USER: ${customInstructions.trim()}\n`
     : "";
+
+  const detailPrompts = {
+    overview: `Create a HIGH-LEVEL overview with 5-8 nodes. Each process node should summarize a major phase. Keep it simple and scannable.`,
+    detailed: `Create a DETAILED step-by-step flowchart with 10-20 nodes. Break down every individual action, handoff, and decision point. Do NOT summarize multiple steps into one node — each concrete action should be its own node. If someone sends an email, that's a node. If someone reviews a document, that's a node. If someone approves or rejects, that's a decision node. Think like you're writing a BPMN diagram where a new employee could follow it without asking questions.`,
+    granular: `Create a GRANULAR process map with 15-30 nodes. Extract EVERY micro-step. If a step involves sub-steps (e.g. "fill out the form" = open form, enter fields, attach documents, submit, get confirmation), break them ALL out as separate nodes. Every wait, review, approval, notification, handoff, and check should be its own node. Include parallel paths where things happen simultaneously. This should be detailed enough to automate.`,
+  };
+
+  const maxTokens = detailLevel === "overview" ? 2500 : detailLevel === "granular" ? 6000 : 4000;
+  const inputLimit = detailLevel === "overview" ? 8000 : 15000;
+
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method:"POST",
     headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
     body: JSON.stringify({
-      model:"claude-haiku-4-5-20251001", max_tokens:2000,
-      messages:[{role:"user",content:`You are a business process analyst. Extract a flowchart from this transcript.${instructionsBlock}\nReturn ONLY valid JSON:\n{"title":"short title","summary":"one sentence","actors":[{"id":"a1","name":"Name","emoji":"👤","color":"#6366F1"}],"nodes":[{"id":"n1","type":"start","label":"Start"},{"id":"n2","type":"process","label":"Step title","actorId":"a1","description":"what happens","steps":["step1"],"output":"result","note":""},{"id":"n3","type":"decision","label":"Decision?","question":"yes or no question","yes":"path if yes","no":"path if no"},{"id":"n4","type":"end","label":"End"}],"edges":[{"from":"n1","to":"n2","label":""},{"from":"n3","to":"n2","label":"YES"},{"from":"n3","to":"n4","label":"NO"}],"keyInsights":["insight1"]}\nRules:\n- Always start with a "start" node and end with one or more "end" nodes\n- Use "decision" nodes for yes/no branches with YES and NO edges\n- "process" nodes for regular steps\n- edges connect nodes with "from" and "to" matching node ids\n- label edges coming out of decisions as "YES" or "NO"\n- 5-12 nodes total\nTRANSCRIPT: ${text.substring(0,8000)}`}]
+      model:"claude-sonnet-4-20250514", max_tokens:maxTokens,
+      messages:[{role:"user",content:`You are an expert business process analyst who creates precise, actionable flowcharts. Your job is to extract a COMPLETE process flow from the following document.${instructionsBlock}
+
+DETAIL LEVEL: ${detailPrompts[detailLevel] || detailPrompts.detailed}
+
+Return ONLY valid JSON with this exact structure:
+{
+  "title": "Process title",
+  "summary": "One sentence describing the full process",
+  "actors": [
+    {"id": "a1", "name": "Role/Person Name", "emoji": "👤", "color": "#6366F1"}
+  ],
+  "nodes": [
+    {"id": "n1", "type": "start", "label": "Start"},
+    {"id": "n2", "type": "process", "label": "Specific action verb + object", "actorId": "a1", "description": "Detailed explanation of what exactly happens", "steps": ["Sub-step 1", "Sub-step 2", "Sub-step 3"], "output": "What this step produces or triggers", "note": "Warning, SLA, or important detail"},
+    {"id": "n3", "type": "decision", "label": "Specific yes/no question?", "question": "The exact condition being evaluated", "yes": "What happens if yes", "no": "What happens if no"},
+    {"id": "n4", "type": "end", "label": "End - Outcome description"}
+  ],
+  "edges": [
+    {"from": "n1", "to": "n2", "label": ""},
+    {"from": "n3", "to": "n2", "label": "YES"},
+    {"from": "n3", "to": "n4", "label": "NO"}
+  ],
+  "keyInsights": ["insight1", "insight2"]
+}
+
+CRITICAL RULES:
+- Start with one "start" node, end with one or more "end" nodes (label the outcome, e.g. "End - Request Approved")
+- EVERY handoff between people/systems = a new process node
+- EVERY condition/check/approval = a decision node (diamond)
+- EVERY waiting period, notification, or trigger = its own process node
+- Decision nodes MUST have exactly YES and NO outgoing edges
+- Use specific action verbs: "Submit form to HR" not "Form submission"
+- Label each process node with the actor (actorId) who performs it
+- Include edge labels for context: "If approved", "Within 24hrs", "Via email"
+- steps[] array should list 2-5 concrete sub-actions inside each process node
+- description should explain WHY this step matters, not just WHAT happens
+- note field: include SLAs, deadlines, exceptions, or risks when mentioned
+
+DOCUMENT TO ANALYZE:
+${text.substring(0, inputLimit)}`}]
     })
   });
   if (!r.ok) { const e=await r.json(); throw new Error(e?.error?.message||"API Error"); }
@@ -360,8 +409,8 @@ function buildReactFlowElements(data, onEdit) {
     byLevel[l].push(n.id);
   });
 
-  const NODE_W=240, NODE_H=100, DEC_W=180, DEC_H=100;
-  const H_GAP=80, V_GAP=80;
+  const NODE_W=240, NODE_H=120, DEC_W=180, DEC_H=120;
+  const H_GAP=100, V_GAP=100;
   const positions = {};
 
   Object.keys(byLevel).sort((a,b)=>a-b).forEach(l=>{
@@ -764,6 +813,7 @@ function UploadPanel({ onRun }) {
   const [showPaste, setShowPaste] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [customText, setCustomText] = useState("");
+  const [detailLevel, setDetailLevel] = useState("detailed");
   const fileRef = useRef(null);
 
   const PRESETS = [
@@ -783,8 +833,8 @@ function UploadPanel({ onRun }) {
     if(file.type==="application/pdf"){res(`[PDF: ${file.name}] Please paste text.`);return;}
     const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsText(file);
   });
-  const handleDrop = async (e) => { e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f){const t=await readFile(f);onRun(t,f.name,instructions);} };
-  const handleFile = async (e) => { const f=e.target.files[0];if(f){const t=await readFile(f);onRun(t,f.name,instructions);} };
+  const handleDrop = async (e) => { e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f){const t=await readFile(f);onRun(t,f.name,instructions,detailLevel);} };
+  const handleFile = async (e) => { const f=e.target.files[0];if(f){const t=await readFile(f);onRun(t,f.name,instructions,detailLevel);} };
 
   return (
     <div style={{flex:1,display:"flex",overflowY:"auto"}}>
@@ -854,7 +904,7 @@ function UploadPanel({ onRun }) {
                   <span style={{fontSize:"12px",color:pasteText.length<50?"var(--text3)":"#059669",fontWeight:500}}>{pasteText.length<50?`${pasteText.length}/50 min`:`✓ ${pasteText.length} chars`}</span>
                   <div style={{display:"flex",gap:"8px"}}>
                     <button className="btn btn-secondary" onClick={()=>{setPasteText("");setShowPaste(false);}} style={{padding:"7px 14px",fontSize:"13px"}}>Clear</button>
-                    <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&onRun(pasteText,"Pasted text",instructions)} disabled={pasteText.trim().length<50} style={{padding:"7px 18px",fontSize:"13px",opacity:pasteText.trim().length>=50?1:0.5}}>Analyze →</button>
+                    <button className="btn btn-primary" onClick={()=>pasteText.trim().length>=50&&onRun(pasteText,"Pasted text",instructions,detailLevel)} disabled={pasteText.trim().length<50} style={{padding:"7px 18px",fontSize:"13px",opacity:pasteText.trim().length>=50?1:0.5}}>Analyze →</button>
                   </div>
                 </div>
               </div>
@@ -865,14 +915,43 @@ function UploadPanel({ onRun }) {
       </div>
 
       {/* ── RIGHT: instructions sidebar ── */}
-      <div style={{width:"260px",flexShrink:0,background:"#F8F9FF",borderLeft:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto"}}>
+      <div style={{width:"280px",flexShrink:0,background:"#F8F9FF",borderLeft:"1px solid var(--border)",display:"flex",flexDirection:"column",overflowY:"auto"}}>
         {/* header */}
         <div style={{padding:"20px 18px 14px",borderBottom:"1px solid var(--border)",background:"white"}}>
           <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
             <span style={{fontSize:"16px"}}>🎯</span>
             <span style={{fontSize:"13px",fontWeight:800,color:"#1E1B4B",letterSpacing:"-0.2px"}}>AI Focus Mode</span>
           </div>
-          <p style={{fontSize:"11px",color:"var(--text3)",lineHeight:1.5,margin:0}}>Pick a preset to guide how the AI reads your document.</p>
+          <p style={{fontSize:"11px",color:"var(--text3)",lineHeight:1.5,margin:0}}>Control how the AI reads your document.</p>
+        </div>
+
+        {/* detail level selector */}
+        <div style={{padding:"14px 12px",borderBottom:"1px solid var(--border)",background:"white"}}>
+          <div style={{fontSize:"10px",fontWeight:700,color:"var(--text3)",letterSpacing:"1px",marginBottom:"8px"}}>DETAIL LEVEL</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+            {[
+              {id:"overview", emoji:"🔭", label:"Overview", desc:"5-8 nodes · High-level phases", color:"#06B6D4"},
+              {id:"detailed", emoji:"🔬", label:"Step-by-Step", desc:"10-20 nodes · Every action & handoff", color:"#6366F1"},
+              {id:"granular", emoji:"🧬", label:"Granular", desc:"15-30 nodes · Micro-steps, automatable", color:"#8B5CF6"},
+            ].map(d=>{
+              const active = detailLevel===d.id;
+              return (
+                <button key={d.id} onClick={()=>setDetailLevel(d.id)}
+                  style={{width:"100%",textAlign:"left",padding:"10px 12px",borderRadius:"10px",
+                    border:`1.5px solid ${active?d.color:"transparent"}`,
+                    background:active?`${d.color}08`:"#F8F9FF",
+                    cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"center",gap:"10px",
+                    boxShadow:active?`0 0 0 3px ${d.color}12`:"none"}}>
+                  <span style={{fontSize:"16px",flexShrink:0}}>{d.emoji}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:"12px",fontWeight:700,color:active?d.color:"var(--text1)"}}>{d.label}</div>
+                    <div style={{fontSize:"10px",color:"var(--text3)",lineHeight:1.3,marginTop:"1px"}}>{d.desc}</div>
+                  </div>
+                  {active&&<span style={{flexShrink:0,fontSize:"14px",color:d.color}}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* preset list */}
@@ -1874,11 +1953,11 @@ export default function App() {
   const handleLogin = (uname, hasKey) => { setUsername(uname); if(hasKey){setApiKey(LS.get(KEYS.APIKEY));setScreen("app");}else setScreen("apisetup"); };
   const handleApiDone = (key) => { setApiKey(key); setScreen("app"); };
 
-  const run = useCallback(async (text, name, customInstructions="") => {
+  const run = useCallback(async (text, name, customInstructions="", detailLevel="detailed") => {
     setStage("processing"); setProgress("Reading document…"); setProgressPct(15);
     try {
       setProgress("AI analyzing & building flowchart…"); setProgressPct(45);
-      const result = await analyzeTranscript(text, apiKey, customInstructions);
+      const result = await analyzeTranscript(text, apiKey, customInstructions, detailLevel);
       setProgress("Laying out flowchart…"); setProgressPct(88);
       await new Promise(r=>setTimeout(r,300));
       setProgressPct(100); await new Promise(r=>setTimeout(r,200));
