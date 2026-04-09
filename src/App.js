@@ -763,6 +763,7 @@ function UploadPanel({ onRun }) {
   const [pasteText, setPasteText] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
+  const [customText, setCustomText] = useState("");
   const fileRef = useRef(null);
 
   const PRESETS = [
@@ -776,7 +777,7 @@ function UploadPanel({ onRun }) {
     { id:"sales",    emoji:"💼", label:"Sales process",         desc:"Pipeline stages & follow-ups",      value:"This is a sales process. Map each stage of the pipeline, key decision points, and who owns each step." },
   ];
 
-  const instructions = selectedPreset ? selectedPreset.value : "";
+  const instructions = [selectedPreset?.value, customText.trim()].filter(Boolean).join("\n\nADDITIONAL USER INSTRUCTIONS: ");
 
   const readFile = (file) => new Promise((res,rej)=>{
     if(file.type==="application/pdf"){res(`[PDF: ${file.name}] Please paste text.`);return;}
@@ -911,14 +912,40 @@ function UploadPanel({ onRun }) {
           })}
         </div>
 
+        {/* custom instructions */}
+        <div style={{padding:"10px 12px",borderTop:"1px solid var(--border)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"6px"}}>
+            <span style={{fontSize:"13px"}}>💬</span>
+            <span style={{fontSize:"11px",fontWeight:700,color:"#1E1B4B"}}>Custom Instructions</span>
+          </div>
+          <textarea
+            className="input"
+            value={customText}
+            onChange={e=>setCustomText(e.target.value)}
+            placeholder={"e.g. Focus on compliance steps, ignore small talk, highlight risks..."}
+            style={{
+              minHeight:"72px",resize:"vertical",fontSize:"12px",lineHeight:1.55,
+              padding:"9px 11px",background:"white",borderRadius:"9px",
+              border:"1.5px solid var(--border)",width:"100%",boxSizing:"border-box",
+              fontFamily:"Plus Jakarta Sans,sans-serif",
+            }}
+          />
+          <div style={{fontSize:"10px",color:customText.trim()?"#059669":"var(--text3)",marginTop:"4px",fontWeight:500}}>
+            {customText.trim()?`✓ ${customText.trim().length} chars — will be sent to AI`:"Optional — add your own guidance"}
+          </div>
+        </div>
+
         {/* active badge at bottom */}
         <div style={{padding:"12px 14px",borderTop:"1px solid var(--border)",background:"white"}}>
-          {selectedPreset ? (
+          {(selectedPreset || customText.trim()) ? (
             <div style={{background:"#EEF2FF",borderRadius:"8px",padding:"8px 12px",display:"flex",alignItems:"center",gap:"8px"}}>
-              <span style={{fontSize:"14px"}}>{selectedPreset.emoji}</span>
+              <span style={{fontSize:"14px"}}>{selectedPreset?.emoji||"💬"}</span>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:"11px",fontWeight:700,color:"#4F46E5"}}>Active: {selectedPreset.label}</div>
-                <div style={{fontSize:"10px",color:"#6366F1",marginTop:"1px"}}>AI will use this focus</div>
+                <div style={{fontSize:"11px",fontWeight:700,color:"#4F46E5"}}>
+                  {selectedPreset ? `Focus: ${selectedPreset.label}` : "Custom instructions"}
+                  {selectedPreset && customText.trim() ? " + custom" : ""}
+                </div>
+                <div style={{fontSize:"10px",color:"#6366F1",marginTop:"1px"}}>AI will use this guidance</div>
               </div>
             </div>
           ) : (
