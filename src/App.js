@@ -2,8 +2,10 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import ReactFlow, {
   Background, Controls, MiniMap,
   useNodesState, useEdgesState,
-  MarkerType, Handle, Position, ReactFlowProvider
+  MarkerType, Handle, Position, ReactFlowProvider,
+  useReactFlow
 } from 'reactflow';
+import 'reactflow/dist/style.css';
 
 
 const COLORS = ["#6366F1","#8B5CF6","#06B6D4","#10B981","#F59E0B","#EF4444","#EC4899","#3B82F6"];
@@ -557,12 +559,12 @@ function EditModal({ node, actors, onSave, onClose }) {
 }
 
 // ── MAIN FLOWCHART COMPONENT ──────────────────────────────────────────────────
-function SvgFlowchart({ data, onDataChange }) {
+function FlowchartInner({ data, onDataChange }) {
   const [editing, setEditing] = useState(null);
+  const { fitView } = useReactFlow();
 
   const handleEdit = useCallback((nodeData) => {
     if(nodeData.nodeType==="start"||nodeData.nodeType==="end") return;
-    // Find original node from data
     const original = data.nodes.find(n=>n.id===nodeData.id);
     if(original) setEditing(original);
   }, [data.nodes]);
@@ -575,12 +577,15 @@ function SvgFlowchart({ data, onDataChange }) {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(initNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(initEdges);
 
-  // Rebuild when data changes (e.g. after edit)
+  // Rebuild when data changes (e.g. after edit) and re-trigger fitView
   useEffect(() => {
     const { rfNodes: newN, rfEdges: newE } = buildReactFlowElements(data, handleEdit);
     setRfNodes(newN);
     setRfEdges(newE);
-  }, [data, handleEdit]);
+    // Allow React Flow to measure nodes before fitting
+    const t = setTimeout(() => fitView({ padding: 0.25, duration: 300 }), 100);
+    return () => clearTimeout(t);
+  }, [data, handleEdit, fitView]);
 
   const handleSave = (updatedNode) => {
     const newNodes = data.nodes.map(n=>n.id===updatedNode.id?updatedNode:n);
@@ -589,45 +594,43 @@ function SvgFlowchart({ data, onDataChange }) {
   };
 
   return (
-    <div style={{flex:1, height:"100%", position:"relative"}}>
-      <ReactFlowProvider>
-        <ReactFlow
-          nodes={rfNodes}
-          edges={rfEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{padding:0.25}}
-          minZoom={0.2}
-          maxZoom={3}
-          style={{background:"#F8F9FF"}}
-          proOptions={{hideAttribution:true}}
-        >
-          <Background color="#DDE1F0" gap={40} size={1.2} variant="dots"/>
-          <Controls style={{boxShadow:"0 2px 12px rgba(99,102,241,0.15)",borderRadius:"10px",border:"1px solid #E4E7F0"}}/>
-          <MiniMap
-            nodeColor={n=>
-              n.type==="ovalNode"&&n.data?.nodeType==="start"?"#10B981":
-              n.type==="ovalNode"?"#EF4444":
-              n.type==="decisionNode"?"#F59E0B":
-              n.data?.color||"#6366F1"
-            }
-            style={{borderRadius:"10px",border:"1px solid #E4E7F0",
-              boxShadow:"0 2px 12px rgba(99,102,241,0.1)"}}
-            maskColor="rgba(248,249,255,0.85)"
-          />
-          {/* Hint */}
-          <div style={{position:"absolute",bottom:14,left:"50%",transform:"translateX(-50%)",
-            background:"rgba(255,255,255,0.92)",backdropFilter:"blur(8px)",
-            border:"1px solid #E4E7F0",borderRadius:"20px",padding:"5px 16px",
-            fontSize:"11px",color:"#94A3B8",fontWeight:500,
-            boxShadow:"0 2px 8px rgba(99,102,241,0.08)",pointerEvents:"none",
-            fontFamily:"Plus Jakarta Sans,sans-serif",zIndex:10}}>
-            🖱️ Drag nodes · Scroll to zoom · Double-click to edit
-          </div>
-        </ReactFlow>
-      </ReactFlowProvider>
+    <>
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        fitView
+        fitViewOptions={{padding:0.25}}
+        minZoom={0.2}
+        maxZoom={3}
+        style={{background:"#F8F9FF", width:"100%", height:"100%"}}
+        proOptions={{hideAttribution:true}}
+      >
+        <Background color="#DDE1F0" gap={40} size={1.2} variant="dots"/>
+        <Controls style={{boxShadow:"0 2px 12px rgba(99,102,241,0.15)",borderRadius:"10px",border:"1px solid #E4E7F0"}}/>
+        <MiniMap
+          nodeColor={n=>
+            n.type==="ovalNode"&&n.data?.nodeType==="start"?"#10B981":
+            n.type==="ovalNode"?"#EF4444":
+            n.type==="decisionNode"?"#F59E0B":
+            n.data?.color||"#6366F1"
+          }
+          style={{borderRadius:"10px",border:"1px solid #E4E7F0",
+            boxShadow:"0 2px 12px rgba(99,102,241,0.1)"}}
+          maskColor="rgba(248,249,255,0.85)"
+        />
+        {/* Hint */}
+        <div style={{position:"absolute",bottom:14,left:"50%",transform:"translateX(-50%)",
+          background:"rgba(255,255,255,0.92)",backdropFilter:"blur(8px)",
+          border:"1px solid #E4E7F0",borderRadius:"20px",padding:"5px 16px",
+          fontSize:"11px",color:"#94A3B8",fontWeight:500,
+          boxShadow:"0 2px 8px rgba(99,102,241,0.08)",pointerEvents:"none",
+          fontFamily:"Plus Jakarta Sans,sans-serif",zIndex:10}}>
+          🖱️ Drag nodes · Scroll to zoom · Double-click to edit
+        </div>
+      </ReactFlow>
 
       {editing && (
         <EditModal
@@ -637,6 +640,16 @@ function SvgFlowchart({ data, onDataChange }) {
           onClose={()=>setEditing(null)}
         />
       )}
+    </>
+  );
+}
+
+function SvgFlowchart({ data, onDataChange }) {
+  return (
+    <div style={{flex:1, minHeight:"500px", height:"100%", position:"relative"}}>
+      <ReactFlowProvider>
+        <FlowchartInner data={data} onDataChange={onDataChange} />
+      </ReactFlowProvider>
     </div>
   );
 }
